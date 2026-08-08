@@ -1,4 +1,4 @@
-# Aura — KISS Rust Coding Agent
+# Aura — Aura 编码智能体
 
 A minimal, testable Rust coding agent. Receives a task → collects workspace context → runs a `while(tool_use)` loop → modifies files and runs verification → outputs a change summary with test report.
 

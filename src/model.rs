@@ -57,6 +57,7 @@ pub struct ModelResponse {
 
 /// 流式响应事件。Phase 4+ 升级为真正的 SSE；v1 仅单事件。
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub enum StreamEvent {
     /// 增量文本。
     Delta(String),

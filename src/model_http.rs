@@ -53,7 +53,9 @@ impl HttpConfig {
         self
     }
 
-    fn url(&self) -> String {
+    /// 构造完整请求 URL。
+    #[must_use]
+    pub fn url(&self) -> String {
         format!(
             "{}/{}",
             self.endpoint.trim_end_matches('/'),
@@ -88,7 +90,7 @@ impl HttpModelAdapter {
 
 // OpenAI wire format
 #[derive(Debug, Serialize)]
-struct WireRequest {
+pub(crate) struct WireRequest {
     model: String,
     messages: Vec<WireMessage>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -97,7 +99,7 @@ struct WireRequest {
 }
 
 #[derive(Debug, Serialize)]
-struct WireMessage {
+pub(crate) struct WireMessage {
     role: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     content: Option<String>,
@@ -108,21 +110,21 @@ struct WireMessage {
 }
 
 #[derive(Debug, Serialize)]
-struct WireTool {
+pub(crate) struct WireTool {
     #[serde(rename = "type")]
     kind: &'static str,
     function: WireToolFunction,
 }
 
 #[derive(Debug, Serialize)]
-struct WireToolFunction {
+pub(crate) struct WireToolFunction {
     name: String,
     description: String,
     parameters: serde_json::Value,
 }
 
 #[derive(Debug, Serialize)]
-struct WireToolCall {
+pub(crate) struct WireToolCall {
     id: String,
     #[serde(rename = "type")]
     kind: &'static str,
@@ -130,19 +132,19 @@ struct WireToolCall {
 }
 
 #[derive(Debug, Serialize)]
-struct WireToolCallFunction {
+pub(crate) struct WireToolCallFunction {
     name: String,
     arguments: String, // JSON string
 }
 
 #[derive(Debug, Deserialize)]
-struct WireResponse {
+pub(crate) struct WireResponse {
     choices: Vec<WireChoice>,
 }
 
 #[derive(Debug, Deserialize)]
 #[allow(dead_code)]
-struct WireChoice {
+pub(crate) struct WireChoice {
     message: WireResponseMessage,
     #[serde(default)]
     finish_reason: Option<String>,
@@ -150,7 +152,7 @@ struct WireChoice {
 
 #[derive(Debug, Deserialize)]
 #[allow(dead_code)]
-struct WireResponseMessage {
+pub(crate) struct WireResponseMessage {
     #[serde(default)]
     role: Option<String>,
     #[serde(default)]
@@ -161,7 +163,7 @@ struct WireResponseMessage {
 
 #[derive(Debug, Deserialize)]
 #[allow(dead_code)]
-struct WireResponseToolCall {
+pub(crate) struct WireResponseToolCall {
     id: String,
     #[serde(rename = "type", default)]
     kind: Option<String>,
@@ -169,13 +171,13 @@ struct WireResponseToolCall {
 }
 
 #[derive(Debug, Deserialize)]
-struct WireResponseFunction {
+pub(crate) struct WireResponseFunction {
     name: String,
     /// JSON 字符串，调用方解析。
     arguments: String,
 }
 
-fn convert_messages(messages: &[Message]) -> Vec<WireMessage> {
+pub(crate) fn convert_messages(messages: &[Message]) -> Vec<WireMessage> {
     messages
         .iter()
         .map(|m| match m {
@@ -211,7 +213,7 @@ fn convert_messages(messages: &[Message]) -> Vec<WireMessage> {
         .collect()
 }
 
-fn convert_schemas(schemas: &[ToolSchema]) -> Vec<WireTool> {
+pub(crate) fn convert_schemas(schemas: &[ToolSchema]) -> Vec<WireTool> {
     schemas
         .iter()
         .map(|s| WireTool {
@@ -225,7 +227,7 @@ fn convert_schemas(schemas: &[ToolSchema]) -> Vec<WireTool> {
         .collect()
 }
 
-fn parse_decision(message: &WireResponseMessage) -> Result<Decision, AgentError> {
+pub(crate) fn parse_decision(message: &WireResponseMessage) -> Result<Decision, AgentError> {
     if let Some(first) = message.tool_calls.first() {
         let args: serde_json::Value = serde_json::from_str(&first.function.arguments)
             .map_err(|e| AgentError::UnparseableDecision(format!("tool args not JSON: {e}")))?;
@@ -298,5 +300,149 @@ impl ModelGateway for HttpModelAdapter {
             let resp = self.complete(request).await?;
             Ok(ModelStream::from_response(resp))
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn convert_messages_system() {
+        let msgs = vec![Message::System {
+            content: "sys".into(),
+        }];
+        let wire = convert_messages(&msgs);
+        assert_eq!(wire.len(), 1);
+        assert_eq!(wire[0].role, "system");
+        assert_eq!(wire[0].content.as_deref(), Some("sys"));
+    }
+
+    #[test]
+    fn convert_messages_user() {
+        let msgs = vec![Message::User {
+            content: "hello".into(),
+        }];
+        let wire = convert_messages(&msgs);
+        assert_eq!(wire[0].role, "user");
+    }
+
+    #[test]
+    fn convert_messages_assistant() {
+        let msgs = vec![Message::Assistant {
+            content: "hi".into(),
+        }];
+        let wire = convert_messages(&msgs);
+        assert_eq!(wire[0].role, "assistant");
+    }
+
+    #[test]
+    fn convert_messages_tool() {
+        let msgs = vec![Message::Tool {
+            call_id: "c1".into(),
+            output: "result".into(),
+            success: true,
+        }];
+        let wire = convert_messages(&msgs);
+        assert_eq!(wire[0].role, "tool");
+        assert_eq!(wire[0].tool_call_id.as_deref(), Some("c1"));
+        assert_eq!(wire[0].content.as_deref(), Some("result"));
+    }
+
+    #[test]
+    fn convert_messages_multiple() {
+        let msgs = vec![
+            Message::System {
+                content: "sys".into(),
+            },
+            Message::User {
+                content: "hello".into(),
+            },
+        ];
+        let wire = convert_messages(&msgs);
+        assert_eq!(wire.len(), 2);
+        assert_eq!(wire[0].role, "system");
+        assert_eq!(wire[1].role, "user");
+    }
+
+    #[test]
+    fn convert_schemas_single_tool() {
+        use crate::tool::ToolSchema;
+        let schemas = vec![ToolSchema {
+            name: "do_thing".into(),
+            description: "does the thing".into(),
+            parameters: serde_json::json!({"type": "object", "properties": {}}),
+        }];
+        let wire = convert_schemas(&schemas);
+        assert_eq!(wire.len(), 1);
+        assert_eq!(wire[0].kind, "function");
+        assert_eq!(wire[0].function.name, "do_thing");
+    }
+
+    #[test]
+    fn convert_schemas_empty() {
+        let wire = convert_schemas(&[]);
+        assert!(wire.is_empty());
+    }
+
+    #[test]
+    fn parse_decision_with_tool_call() {
+        let msg = WireResponseMessage {
+            role: Some("assistant".into()),
+            content: None,
+            tool_calls: vec![WireResponseToolCall {
+                id: "call_1".into(),
+                kind: Some("function".into()),
+                function: WireResponseFunction {
+                    name: "todo_write".into(),
+                    arguments: r#"{"todos": []}"#.into(),
+                },
+            }],
+        };
+        let result = parse_decision(&msg);
+        let decision = result.expect("should parse");
+        assert!(matches!(decision, Decision::Call(c) if c.name == "todo_write"));
+    }
+
+    #[test]
+    fn parse_decision_without_tool_call() {
+        let msg = WireResponseMessage {
+            role: Some("assistant".into()),
+            content: Some("hello world".into()),
+            tool_calls: vec![],
+        };
+        let result = parse_decision(&msg);
+        let decision = result.expect("should parse");
+        assert!(matches!(decision, Decision::Done { summary } if summary == "hello world"));
+    }
+
+    #[test]
+    fn parse_decision_empty_content_returns_empty_summary() {
+        let msg = WireResponseMessage {
+            role: Some("assistant".into()),
+            content: None,
+            tool_calls: vec![],
+        };
+        let result = parse_decision(&msg);
+        let decision = result.expect("should parse");
+        assert!(matches!(decision, Decision::Done { summary } if summary.is_empty()));
+    }
+
+    #[test]
+    fn parse_decision_invalid_args_returns_error() {
+        let msg = WireResponseMessage {
+            role: Some("assistant".into()),
+            content: None,
+            tool_calls: vec![WireResponseToolCall {
+                id: "call_1".into(),
+                kind: Some("function".into()),
+                function: WireResponseFunction {
+                    name: "bad_tool".into(),
+                    arguments: "not json {{{".into(),
+                },
+            }],
+        };
+        let result = parse_decision(&msg);
+        assert!(result.is_err());
     }
 }

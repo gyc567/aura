@@ -188,7 +188,10 @@ impl ModelGateway for FakeModel {
     > {
         let next = {
             let mut queue = self.queue.lock().unwrap();
-            assert!(!queue.is_empty(), "FakeModel queue exhausted — provide enough decisions for all turns");
+            assert!(
+                !queue.is_empty(),
+                "FakeModel queue exhausted — provide enough decisions for all turns"
+            );
             queue.remove(0)
         };
         Box::pin(async move {
@@ -243,7 +246,7 @@ fn resolve_workspace(given: Option<&Path>) -> Result<PathBuf, AgentError> {
 }
 
 /// 退出码由 `StopReason` 决定。
-fn exit_code_from_report(report: &RunReport) -> ExitCode {
+pub(crate) fn exit_code_from_report(report: &RunReport) -> ExitCode {
     match &report.stop_reason {
         aura::agent::StopReasonPayload::Completed { .. } => ExitCode::from(0),
         _ => ExitCode::from(1),
