@@ -3,7 +3,7 @@
 //! v1 范围：
 //! - 单任务模式：`aura <INSTRUCTION>`。
 //! - 通过 `--fake-model` 启用确定性脚本（无网络），或 `--api-key` + `--endpoint` + `--model` 启用 HTTP 模型。
-//! - 默认工具：`todo_write`；通过 `--tools` 添加更多（v1 仅 `todo_write`）。
+//! - 默认工具集：read_file, write_file, run_command, list_dir, grep_files, find_files, todo_write。
 //! - SIGINT handler：设置 `Arc<AtomicBool>`，循环 graceful 停止。
 //! - 文本输出（默认）或 JSON（`--json`）。
 //!
@@ -26,7 +26,11 @@ use aura::model::{ModelGateway, ModelRequest, ModelResponse};
 use aura::output::{JsonReport, format_text_report};
 use aura::policy::Policy;
 use aura::registry::ToolRegistry;
-use aura::tools::todo_write::TodoWriteTool;
+use aura::tools::{
+    find_files::FindFilesTool, grep_files::GrepFilesTool, list_dir::ListDirTool,
+    read_file::ReadFileTool, run_command::RunCommandTool, todo_write::TodoWriteTool,
+    write_file::WriteFileTool,
+};
 use aura::{Budget, HttpConfig, HttpModelAdapter, InMemoryRegistry};
 
 fn main() -> ExitCode {
@@ -156,9 +160,15 @@ fn build_registry(tools: &[String]) -> Result<InMemoryRegistry, AgentError> {
     for name in tools {
         match name.as_str() {
             "todo_write" => built.push(Arc::new(TodoWriteTool::new())),
+            "read_file" => built.push(Arc::new(ReadFileTool::new())),
+            "write_file" => built.push(Arc::new(WriteFileTool::new())),
+            "run_command" => built.push(Arc::new(RunCommandTool::new())),
+            "list_dir" => built.push(Arc::new(ListDirTool::new())),
+            "grep_files" => built.push(Arc::new(GrepFilesTool::new())),
+            "find_files" => built.push(Arc::new(FindFilesTool::new())),
             other => {
                 return Err(AgentError::Context(format!(
-                    "tool `{other}` not available in v1 (only `todo_write`)"
+                    "unknown tool: `{other}`"
                 )));
             }
         }

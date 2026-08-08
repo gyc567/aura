@@ -1,8 +1,12 @@
 //! v1 内置工具集合。
 //!
 //! Phase 2 已交付：`todo_write`。
-//! Phase 2.5+ 待交付：`read_file` / `write_file` / `run_command` / `list_dir` /
-//! `grep_files` / `find_files`。
-//! Phase 6（v1.1）：`task`（子智能体）。
+//! Phase 3 已交付：文件系统与命令工具。
 
 pub mod todo_write;
+pub mod read_file;
+pub mod write_file;
+pub mod run_command;
+pub mod list_dir;
+pub mod grep_files;
+pub mod find_files;

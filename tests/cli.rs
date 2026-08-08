@@ -99,11 +99,11 @@ fn unknown_tool_fails() {
         .arg("/tmp")
         .arg("--fake-model")
         .arg("--tools")
-        .arg("read_file,todo_write")
+        .arg("todo_write,nonexistent_tool_xyz")
         .arg("plan")
         .assert()
         .failure()
-        .stderr(predicate::str::contains("read_file"));
+        .stderr(predicate::str::contains("nonexistent_tool_xyz"));
 }
 
 #[test]

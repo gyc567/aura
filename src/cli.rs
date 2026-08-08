@@ -38,11 +38,11 @@ pub struct CliArgs {
     #[arg(long, value_enum, default_value_t = CliPolicyLevel::Balanced)]
     pub policy: CliPolicyLevel,
 
-    /// 工具白名单（逗号分隔）。默认 `todo_write`。
+    /// 工具白名单（逗号分隔）。默认包含所有工具。
     #[arg(
         long,
         value_delimiter = ',',
-        default_value = "todo_write",
+        default_value = "read_file,write_file,run_command,list_dir,grep_files,find_files,todo_write",
         value_name = "LIST"
     )]
     pub tools: Vec<String>,
