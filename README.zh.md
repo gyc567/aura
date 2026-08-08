@@ -2,6 +2,8 @@
 
 一个最小化、可测试的 Rust 编码智能体。接收任务 → 收集工作区上下文 → 运行 `while(tool_use)` 循环 → 修改文件并执行验证 → 输出变更摘要和测试报告。
 
+🌐 **Language / 语言**: [English](README.md) · [中文](README.zh.md)
+
 ## 状态
 
 **Phase 1–4 已完成。** v1 进行中。**v1.1 规划中**：会话层 + RLM 式子代理 + 工作记忆 — 详见 [`docs/architecture-roadmap.md`](docs/architecture-roadmap.md)。

@@ -2,6 +2,8 @@
 
 A minimal, testable Rust coding agent. Receives a task → collects workspace context → runs a `while(tool_use)` loop → modifies files and runs verification → outputs a change summary with test report.
 
+🌐 **Language / 语言**: [English](README.md) · [中文](README.zh.md)
+
 ## Status
 
 **Phase 1–4 complete.** v1 in progress. **v1.1 planned**: Session layer + RLM-style subagents + working memory — see [`docs/architecture-roadmap.md`](docs/architecture-roadmap.md).
