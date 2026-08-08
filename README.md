@@ -1,4 +1,4 @@
-# Aura — Aura 编码智能体
+# Aura — A Minimal Rust Coding Agent
 
 A minimal, testable Rust coding agent. Receives a task → collects workspace context → runs a `while(tool_use)` loop → modifies files and runs verification → outputs a change summary with test report.
 
@@ -39,25 +39,26 @@ cargo run --release -- --workspace /tmp/my-project --fake-model --json "Add a RE
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  L1 表现层  CLI (aura-cli)                                  │
+│  L1 Presentation   CLI (aura-cli)                           │
 │         --workspace --max-turns --policy --resume --json   │
 ├─────────────────────────────────────────────────────────────┤
-│  L2 会话层  Session (v1.1)  — JSONL transcript + artifacts │
-│                                                             │
+│  L2 Session        Session (v1.1) — JSONL transcript      │
+│                     + artifacts (scratchpad, children)    │
 ├─────────────────────────────────────────────────────────────┤
-│  L3 执行层  Agent (while loop driver)                       │
+│  L3 Execution      Agent (while loop driver)                │
 │    while !interrupted && turns < budget && tool_errors < 3 │
 │      → model.complete()                                     │
 │      → if Decision::Call → registry.execute() → 回填       │
 │      → else break (Done/Ask/Fail/Absent)                   │
 ├─────────────────────────────────────────────────────────────┤
-│  L4 能力层  Tool Registry + Policy + Precheck + Reminders   │
+│  L4 Capabilities   Tool Registry + Policy + Precheck        │
+│                    + Reminders                              │
 ├─────────────────────────────────────────────────────────────┤
-│  L5 模型层  ModelGateway (OpenAI-compatible HTTP)            │
+│  L5 Model           ModelGateway (OpenAI-compatible HTTP)   │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-> v1 当前为单进程 CLI，单线程 `tokio` 运行时；v1.1 引入 Session 层 + RLM 式子代理，升级为 `multi_thread` 运行时。详见 [`docs/architecture-roadmap.md`](docs/architecture-roadmap.md)。
+> v1 is currently a single-process CLI on a single-threaded `tokio` runtime; v1.1 introduces the Session layer + RLM-style subagents and upgrades to a `multi_thread` runtime. See [`docs/architecture-roadmap.md`](docs/architecture-roadmap.md).
 
 ### Core Loop Invariants (v0.6)
 
@@ -135,3 +136,7 @@ cargo run --release -- --help
 ## Design Document
 
 Full design rationale: [`docs/coding-agent-design.md`](docs/coding-agent-design.md)
+
+---
+
+<a href="README.zh.md">中文版本</a>
