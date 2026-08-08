@@ -99,7 +99,7 @@ Append one entry per run. Prune entries older than 30 days.
     "cargo_test": "PASS (154 tests)",
     "cargo_fmt_check": "PASS",
     "cargo_clippy": "PASS (0 warnings)",
-    "cargo_llvm_cov": "IN_PROGRESS (compiling, 10+ min)",
+    "cargo_llvm_cov": "FAIL (80.19% regions, 78.81% functions, 80.41% lines; need 100%)",
     "cargo_audit": "FAIL (network error: git https config issue)"
   },
   "next": "Phase 5 llvm-cov result, Phase 6 (subagent), Phase 7 (plugin v2)"
