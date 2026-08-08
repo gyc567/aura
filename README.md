@@ -50,7 +50,7 @@ cargo run --release -- --workspace /tmp/my-project --fake-model --json "Add a RE
 │  L3 Execution      Agent (while loop driver)                │
 │    while !interrupted && turns < budget && tool_errors < 3 │
 │      → model.complete()                                     │
-│      → if Decision::Call → registry.execute() → 回填       │
+│      → if Decision::Call → registry.execute() → refeed     │
 │      → else break (Done/Ask/Fail/Absent)                   │
 ├─────────────────────────────────────────────────────────────┤
 │  L4 Capabilities   Tool Registry + Policy + Precheck        │
