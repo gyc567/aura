@@ -23,6 +23,32 @@ Append one entry per run. Prune entries older than 30 days.
 
 ```json
 {
+  "run_id": "2026-08-08T09:53:00Z",
+  "pattern": "quality-gates (L2 minimal-fix, human-authorized)",
+  "duration_s": 1200,
+  "items_found": 30,
+  "actions_taken": 30,
+  "escalations": 0,
+  "tokens_estimate": 80000,
+  "outcome": "fix-proposed",
+  "lint_fixed": {
+    "clippy": 30,
+    "fmt": 12
+  },
+  "tests_total": 198,
+  "clippy_warnings": 0,
+  "quality_gates": {
+    "cargo_fmt_check": "PASS",
+    "cargo_clippy": "PASS (0 warnings)",
+    "cargo_test": "PASS (198 tests)"
+  },
+  "note": "rust 1.95 新 lint + rustfmt 版本差异导致的既有质量问题。手动修复 11 类 clippy lint + cargo fmt 统一。另完成 prime-agent 架构方案落盘（docs/architecture-roadmap.md，人工拍板 R1-R3）。",
+  "next": "Phase 5 llvm-cov（覆盖率 91% 未达 100%，需人工决定）；Phase 6 (Session + subagent + scratchpad)"
+}
+```
+
+```json
+{
   "run_id": "2026-08-07T08:51:11Z",
   "pattern": "design-implementor (ad-hoc)",
   "duration_s": 0,

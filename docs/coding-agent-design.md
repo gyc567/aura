@@ -29,7 +29,7 @@
 | 完整 TUI / 自动补全 / 主题 | v2+ | KISS 优先验证非交互闭环 |
 | 扩展/插件体系 | [plugin-spec-v2.md](plugin-spec-v2.md) | 独立规格文件，v2 候选 |
 | 多 provider 路由 | v1 仅 OpenAI-compatible，v2+ | pi_agent_rust 维护 7 个 provider |
-| 会话持久化（JSONL / SQLite） | v2+ | 闭环稳定后再做 |
+| 会话持久化（JSONL / SQLite） | v1.1（Phase 6） | Session 层落地后续跑 |
 | 远程 RPC 协议（IDE 集成） | v3+ | 需要稳定 wire 格式 |
 | 长会话自动压缩 / 摘要 | v2+ | 与持久化绑定 |
 | 端云混合、沙箱强制隔离 | 委外 OS / 容器 | agent 内不做 |
@@ -122,8 +122,8 @@
 
 - **驱动是 `while` 循环**，`StateMachine.transition()` 仅作 record-only——`let _ = recorder.transition(...)` 丢弃错误。**阻断只来自 `budget` / `Result` 传播 / 中断标志**。
 - **`Decision::Ask` / `Done` / `Fail` 与"无 `ToolCall`"等价**：都结束循环。`Ask` 结束后 CLI 负责重提交，`Done` / `Fail` 由 CLI 转退出码。
-- **并发模型**（v0.5 新增明确）：`Agent::run` 在 `tokio` 单线程运行时上运行（`#[tokio::main(flavor = "current_thread")]`）。所有 trait 上限为 `Send + Sync` 是为未来多线程扩展预留，**v1 不实际并发**。`Arc<StateMachine>` + `Arc<AtomicBool>` 通过 `Clone` 共享给 SIGINT handler。
-- **工具错误契约**（v0.5 新增）：`registry.execute(call, ctx)?` 中 `?` 立即结束循环，写入 `StopReason::ToolFailed`。**不把工具错误喂回模型**——避免模型"在错误中编造"的幻觉。如需重试由 CLI 调用方负责。
+- **并发模型**（v0.6 修订）：v1 维持 `tokio` 单线程运行时（`#[tokio::main(flavor = "current_thread")]`）；**v1.1 子代理落地时升级为 `flavor = "multi_thread"`**。所有 trait 上限为 `Send + Sync`，为多线程扩展预留。`Arc<StateMachine>` + `Arc<AtomicBool>` 通过 `Clone` 共享给 SIGINT handler。
+- **工具错误契约**（v0.6 修订，决议 R1）：工具执行失败**回填给模型**作为 `Message::Tool { success: false }`，由模型修正参数或换方案；引入 `ErrorBudget`（默认 3 次）防止失控，达上限才结束循环并写入 `StopReason::ToolFailed`。详见 [`architecture-roadmap.md`](architecture-roadmap.md) §4.1。
 
 ## 5. 模块设计
 
@@ -152,7 +152,9 @@ src/
     list_dir.rs
     grep_files.rs
     find_files.rs
-    task.rs         # v1.1
+    subagent.rs     # v1.1 RLM 式子代理（§5.8）
+    agent_message.rs # v1.1 父子消息（§5.8）
+    scratchpad.rs   # v1.1 工作记忆（见 architecture-roadmap.md §4.6）
   verify.rs         # 验证执行与报告（Phase 2）
   cli.rs            # CLI 入口与参数（Phase 4）
 ```
@@ -228,7 +230,7 @@ pub struct ToolSchema {
 | `write_file` | `FsWrite` | true |
 | `run_command` | `Exec` | true |
 | `todo_write` | （无） | false |
-| `task`（v1.1） | `Session` + `Exec` | true |
+| `subagent`（v1.1） | `Session` + `Exec` | true |
 
 #### 5.3.2 二阶段执行 + regex 预检（v0.5 修订）
 
@@ -237,9 +239,11 @@ pub struct ToolSchema {
 1. **预检**（cheap）：`precheck::analyze(argv)` 用 5 条高危 regex（`rm -rf` / 设备写入 / 反弹 shell / `curl|sh` / 系统目录修改）→ 返回 `PrecheckResult { tier: RiskTier, paths: Vec<PathBuf> }`。
 2. **Capability gate**：`Policy::evaluate(task, call)` 检查任务是否被授予 `Exec` 及涉及路径的 `FsRead`/`FsWrite`。
 3. **Confirmation**：若 `needs_confirmation` 且 CLI 未传 `--yes`，返回 `AgentError::NeedsConfirmation`，由 CLI 退出码 3 提示用户。
-5. **Spawn**：argv 模式 + 超时 + 输出截断。
+4. **Spawn**：argv 模式 + 超时 + 输出截断。
 
-每步决策写入 `events.jsonl` 审计 ledger；可被 replay。
+**v0.6 修订 — 工具错误回填（R1）**：预检、capability gate 或 spawn 阶段的错误不再立即终止循环。执行失败的工具结果作为 `Message::Tool { success: false, output }` 回填给模型，由模型修正参数或换方案。`ErrorBudget`（默认 3 次）防止失控——累积达上限才结束循环并写入 `StopReason::ToolFailed`（详见 §5.6）。每次回填附带系统级提示："上一个工具失败，请修正或换方案，不要重复同一调用"。
+
+每步决策写入 `events.jsonl`审计 ledger；可被 replay。
 
 #### 5.3.3 工具清单（v1）
 
@@ -250,7 +254,7 @@ pub struct ToolSchema {
 | `write_file` | `FsWrite` | 必走 confirmation；写入前 stdout 输出 unified diff（**不靠交互确认，v1 non-interactive 直接打印 diff 到 stderr**） |
 | `run_command` | `Exec` | 四步走；argv 模式；超时；输出截断 |
 | `list_dir` / `grep_files` / `find_files` | `FsRead` | 只读；不读内容（grep 限制输出行数） |
-| `task`（v1.1） | `Session` + `Exec` | 同 agent 实例化，无递归 |
+| `subagent`（v1.1） | `Session` + `Exec` | RLM 式子代理：admission handle + 后台 task + `ChildRegistry`（§5.8） |
 
 **v0.5 修订**（对应审计 #12）：`write_file` "dry-run diff 预览"改为"非交互式：先打印 unified diff 到 stderr，用户在 CLI 层 `--yes` 跳过 confirmation"——不再要求交互。
 
@@ -348,6 +352,7 @@ where
     let recorder = Arc::new(StateMachine::new());
     let mut messages = build_initial_messages(&task);
     let mut used_turns: u32 = 0;
+    let mut error_count: u32 = 0; // v0.6（R1）ErrorBudget
 
     loop {
         if interrupted.load(Ordering::Relaxed) {
@@ -380,7 +385,11 @@ where
         sink.emit(AgentEvent::ToolStarted { name: call.name.clone() });
 
         let ctx = ToolContext::new(task.workspace.clone(), call.id.clone());
-        let output = registry.execute(&call, &ctx)?; // 工具错误结束循环
+        // v0.6（R1）: 工具错误回填而非终止；ErrorBudget 耗尽才终止
+        let output = registry.execute(&call, &ctx).unwrap_or_else(|e| {
+            error_count += 1;
+            ToolOutput::err(format!("tool execution failed: {e}"))
+        });
         let reminded = RemindedOutput::wrap(&call, output.clone());
         sink.emit(AgentEvent::ToolFinished { name: call.name.clone(), success: output.success });
 
@@ -390,37 +399,46 @@ where
             success: output.success,
         });
         used_turns += 1;
+
+        // ErrorBudget 耗尽 → 终止
+        if error_count >= budget.max_tool_errors {
+            let reason = StopReason::VerificationFailed {
+                message: format!("tool errors exceeded budget ({})", budget.max_tool_errors),
+            };
+            let _ = recorder.transition(AgentState::Failed);
+            sink.emit(AgentEvent::Stopped { reason: reason.clone() });
+            return Ok(RunReport::failed(used_turns, reason));
+        }
     }
 }
 ```
 
-**关键不变量**（v0.5 修订，对应审计 #3）：
+**v0.6 修订 — 关键不变量**（v0.5 修订对审计 #3；v0.6 修订对 R1）：
 
 - `recorder.transition` 用 `let _ =` 丢弃错误——**prose 与代码一致地"不阻断"**。
-- 循环**唯一**退出条件：`interrupted` / `budget.check_turns` / `?` 传播的工具错误 / 模型返回非 `Call`。
+- **v0.6 前**（v0.5 行为）：循环唯一退出条件为 `interrupted` / `budget.check_turns` / `?` 传播的工具错误 / 模型返回非 `Call`。
+- **v0.6 修订**（R1）：工具执行失败 → 回填 `Message::Tool { success: false }`，循环继续；**唯一退出条件**改为 `interrupted` / `budget.check_turns` / `ErrorBudget` 耗尽 / `?` 传播的模型错误 / 模型返回非 `Call`。
 - `Decision::into_tool_call()` 与 `Decision::Absent` 配合，覆盖"无 ToolCall"语义。
+- `ErrorBudget` 通过 `Budget` 扩展引入；默认 `max_tool_errors = 3`，CLI 可 `--max-tool-errors` 覆盖。
+- 新增 `let mut error_count: u32 = 0;` 在 `used_turns` 声明旁；`AgentState::Failed` 用于错误回填后模型仍无法修正。
 
 ### 5.7 执行模式
 
 v1 仅 Non-interactive Print；TUI 与 RPC 显式延后。
 
-### 5.8 子智能体（v0.5 修订，对应审计 #5）
+### 5.8 子智能体（v0.6 修订：RLM 式子代理，对应审计 #5 + prime-agent 参考）
 
-**关键变更**：`TaskTool::execute` 不再调用 `Handle::current().block_on`，因为在 async 上下文会 panic。改为：
+**v0.5 关键变更（保留）**：`subagent` 工具不再调用 `Handle::current().block_on`，因为在 async 上下文会 panic。改为由 `Agent::run` 调用方注入 runtime handle 并以 `.await` 执行。
 
-```rust
-impl Tool for TaskTool {
-    fn execute(&self, input: ToolInput, ctx: &ToolContext) -> Result<ToolOutput, AgentError> {
-        let sub: TaskRequest = parse(input.arguments)?;
-        // 子任务在当前 tokio runtime 中以 .await 执行；
-        // 由 Agent::run 调用方传入 runtime handle 避免 block_on。
-        // v1.1 实施时此处给出具体的 spawn/await 模板。
-        todo!("v1.1: implement via injected runtime handle, not Handle::current().block_on")
-    }
-}
-```
+**v0.6 修订（对齐 prime-agent `rlm()` 语义，详见 [`architecture-roadmap.md`](architecture-roadmap.md) §4.2）**：子智能体从"同步 spawn/await 占位"升级为 **RLM 式子代理**：
 
-**v0.5 标记**：这是 v1.1 工作，v1 不实现；占位 `todo!()` 即可。
+- `subagent` 工具：输入 `{ task, name?, model? }` → 立即返回 **admission handle**（`child_id` / `name` / `session_dir` / `status`），**不等待**子代理完成；
+- 后台 `tokio::spawn` 运行子 agent（独立消息历史、独立 transcript），runtime 升级为 multi-thread（v0.5 的 current_thread 限制在 v1.1 解除）；
+- 父作用域 `ChildRegistry`：`list` / `status` / `fetch_result` / `delete`；
+- `agent_message` 工具：parent ↔ child 定向消息（邮箱队列），结果通过显式回复或文件传递，**不作为 `subagent` 返回值同步等待**；
+- 递归：`TaskRequest.max_depth`（继承，默认 2）；深度 0 / 未 opt-in 时构造期静态剥离 `subagent` 工具（保留决议 #6）。
+
+v1 不实现，占位 `todo!()` 即可。
 
 ### 5.9 事件、上下文、会话
 
@@ -463,7 +481,7 @@ precheck = "regex"
 - `PathPolicy(String)` / `CommandPolicy(String)` — 退出码 3（策略拒绝）
 - `Context(String)` — 退出码 1，可重试
 
-**v0.5 删除**（v0.4 增加、当前 Phase 1 未实现、且与 `is_retryable()` 设计冗余）：`ReminderMissing` / `SubagentRecursion`。前者由 lint 检查（`tests/reminders.rs`）兜底，不引入运行时路径；后者由 `TaskTool` 构造时静态剥离 `task` 工具，编译期保证。
+**v0.5 删除**（v0.4 增加、当前 Phase 1 未实现、且与 `is_retryable()` 设计冗余）：`ReminderMissing` / `SubagentRecursion`。前者由 lint 检查（`tests/reminders.rs`）兜底，不引入运行时路径；后者由 `subagent` 工具构造期静态剥离（深度 0 / 未 opt-in），编译期保证。
 
 ## 8. 测试策略与百分百覆盖要求
 
@@ -474,7 +492,7 @@ precheck = "regex"
 3. **回执测试**：`tests/reminders.rs` — 通过 `ToolRegistry` 反射每个工具的 `global_reminders` / `tool_reminders`（v0.5 通过新增 trait 方法暴露），断言非空且是 `&'static str`。
 4. **系统提醒测试**：`tests/system_reminders.rs` — 覆盖 `baseline` / `todo_changed` / `todo_empty_suggest` / `secret_warning`。
 5. **while 循环测试**：`tests/loop.rs` — 6 类场景：成功完成、`Ask` 暂停后 CLI 重提交、`Done`/`Fail` 自然结束、`Absent`（无 ToolCall）按 Done 处理、预算耗尽、工具失败。
-6. **子智能体测试**（v1.1）：`tests/subagent.rs` — 子任务 registry 移除 `task`（构造期静态保证），events 隔离。
+6. **子智能体测试**（v1.1）：`tests/subagent.rs` — 子任务 registry 移除 `subagent`（构造期静态保证）；admission handle / 后台执行 / 消息传递 / events 隔离。
 7. **上下文测试**：优先级、忽略敏感文件、截断和读取失败。
 8. **模型 contract test**：基线已有 `FakeModel`。
 9. **CLI smoke test**：退出码、stdout/stderr、配置读取、SIGINT 行为。
@@ -572,11 +590,21 @@ Notes: ...
 
 `cargo fmt --check` / `cargo test` / `cargo clippy -D warnings` / `cargo llvm-cov 100%` / `cargo audit` / 拼写检查回执与提醒 / 手工预检 5 类高危模式。
 
-### Phase 6（v1.1）：子智能体 + fast model 预检
+### Phase 6（v1.1）：会话地基 + 弹性循环 + 子代理 + 工作记忆（v0.6 修订）
 
-### Phase 7（v2）：插件系统
+v0.6 起 Phase 6 范围扩展（详见 [`architecture-roadmap.md`](architecture-roadmap.md) §6）：
 
-详见 [`plugin-spec-v2.md`](plugin-spec-v2.md)。
+1. **Session 消息管理子集**：`Session` 类型 + `JsonlTranscript`（append-only、可重放、原子写）；
+2. **错误回填 + ErrorBudget**（默认 3 次）：修订"工具错误立即终止"决策；
+3. **RLM 式子代理**：admission handle + 后台 task + `ChildRegistry` + `agent_message`；runtime 升级 multi-thread；
+4. **scratchpad 工作记忆**：跨轮次、可命名、落盘（`artifacts/scratchpad.json`）；
+5. **fast model 预检 + Budget/gate 基础**：token/time 预算与 QualityGate 去重。
+
+### Phase 7（v2）：会话完整化 + compaction + 插件系统（v0.6 修订）
+
+1. Session 完整生命周期 + `--resume`；
+2. 分层 compaction：摘要早期 + 保留核心窗口（fast model 摘要，规则兜底）；
+3. 插件系统：详见 [`plugin-spec-v2.md`](plugin-spec-v2.md)，复用 Session 做安装状态持久化。
 
 ## 12. 兼容性与回滚
 
@@ -607,12 +635,15 @@ Notes: ...
 | 3 | ~~是否需要交互式确认？~~ | 已确认：v1 Non-interactive |
 | 4 | CI 是否允许安装 `cargo-llvm-cov`？ | **未决** |
 | 5 | 第一版支持哪些语言的测试命令？ | **未决** |
-| 6 | subagent 工具 | 已确认：v1.1 启用，opt-in，构造期静态剥离 |
+| 6 | subagent 工具 | 已确认：v1.1 启用，opt-in，构造期静态剥离；默认递归深度 2 |
 | 7 | 命令中介 tier 默认值 | 已确认：v1 用 balanced |
 | 8 | `#![forbid(unsafe_code)]` | 已确认：v1 启用 |
 | 9 | regex vs fast model 预检 | **未决**（倾向 regex） |
 | 10 | todo_write 版本号 | **未决**（倾向 `aura.todo.v1`） |
 | 11 | 拼写检查 CI | **未决** |
+| 12 | 工具错误循环语义（R1） | 已确认：错误回填 + 错误预算（默认 3 次） |
+| 13 | Session 持久化时机（R2） | 已确认：提前到 v1.1（Phase 6 前置） |
+| 14 | prime-agent 方案落盘（R3） | 已确认：`docs/architecture-roadmap.md` + 主文档 §5.8/§11 修订 |
 
 > v0.5 起，未决议题明确标"未决"，不再伪造"已决"标记。评审人请逐条答复。
 
@@ -644,7 +675,7 @@ Notes: ...
 | 工具结果回执 | ✗ | ✗ | ✓ | v1 |
 | 静态系统提醒 | ✗ | ✗ | ✓ | v1 |
 | 子智能体 = 同实例 | — | — | ✓ | v1.1 |
-| 子智能体不可递归 | — | — | ✓ | v1.1 静态剥离 |
+| 子智能体不可递归 | — | — | ✓ | v1.1 静态剥离（默认深度 2，可配置） |
 | 子智能体信任生命周期 | — | ✓ | ✗ | 不做 |
 | 能力门禁 | — | ✓ | 部分 | v1 |
 | 二阶段执行 | — | ✓ | 部分 | v1 |
@@ -654,7 +685,7 @@ Notes: ...
 | 参数 JSON Schema 校验 | — | — | — | v1（用 jsonschema crate） |
 | 流式 SSE 解析 | — | — | ✓ | v1 |
 | 上下文截断策略 | — | ✓ | 部分 | v1 |
-| Long-running session 压缩 | — | ✓ | ✓ | v2+ |
+| Long-running session 压缩 | — | ✓ | ✓ | v2（分层 compaction） |
 | TUI | ✓ | ✓ | ✓ | v2+ |
 | RPC 协议 | — | — | — | v3+ |
 | 扩展/插件 | — | ✓ | — | v2（独立规格） |
@@ -662,5 +693,30 @@ Notes: ...
 | 多 provider | ✓ | ✓ | — | v2+ |
 | 证据驱动声明 | — | ✓ | — | v1 |
 | `#![forbid(unsafe_code)]` | — | ✓ | — | v1 |
+| **RLM 编程模型** (subagent = 函数调用, admission handle) | — | — | — | prime-agent | ✓（v0.6) |
+| **持久计算环境** (IPython/daemon) | — | — | — | prime-agent | **不引入**（Rust 单进程, scratchpad 最小等价） |
+| **父子消息通信** (agent_message) | — | — | — | prime-agent | ✓（v1.1) |
+| **弹性错误回填** (错误回填 + ErrorBudget) | — | ✓ | — | prime-agent | ✓（R1) |
+| **Session 持久化** (JSONL + resume) | — | — | — | prime-agent | ✓（v1.1, §4.3) |
+| **自动 compaction** (摘要 + 保留最近) | — | ✓ | ✓ | prime-agent | v2（§4.4) |
+| **Continual Harness** (自改进) | — | — | — | prime-agent | `/refine`-lite（§4.8, v3+) |
+| **daemon/supervisor 多进程** | — | — | — | prime-agent | **不引入**（§6) |
+| **工作记忆 (scratchpad)** | — | — | — | prime-agent | ✓（v1.1, §4.6) |
+| **QualityGate 去重** | — | — | — | prime-agent | ✓（v1.1, §4.5) |
+| **token/time 预算** | — | — | — | prime-agent | ✓（v1.1, §4.5) |
 
-**取舍原则**：Claude Code 提供**模式与机制**；pi_agent_rust 提供**安全模型**；两者交集之外的复杂能力（信任生命周期、多 provider、扩展、持久化、TUI、RPC）一律延后或独立规格化。
+<prime-agent> 列说明：prime-agent 提供 RLM 编程模型（持久环境 + 子代理 + 父子通信 + 错误回填 + Session + compaction + Continual Harness），Aura v0.6 借鉴其核心理念但**降级移植**到 Rust 单进程模型——不引入 daemon 多进程、不引入 IPython，改用 scratchpad 作最小等价工作记忆。
+
+**取舍原则**：Claude Code 提供**模式与机制**；pi_agent_rust 提供**安全模型**；prime-agent 提供**RLM 编程模型与会话/持久化理念**（v0.6 起参考）；三者交集之外的复杂能力（信任生命周期、多 provider、daemon 多进程、TUI、RPC）一律延后或独立规格化。
+
+## 17. v0.6 变更摘要（参考 prime-agent）
+
+| 变更 | 对应决议/章节 |
+|------|-----------|
+| 工具错误循环语义：立即终止 → 错误回填 + ErrorBudget（默认 3 次） | R1 / §4、README 关键决策表 |
+| 子智能体改为 RLM 式子代理（admission handle + 异步 + 通信） | §5.8 / `architecture-roadmap.md` §4.2 |
+| Session 持久化提前到 v1.1（Phase 6 前置） | R2 / §11 Phase 6 |
+| 新增 `docs/architecture-roadmap.md` 架构路线图 | R3 |
+| 上下文截断升级为分层 compaction（v2） | `architecture-roadmap.md` §4.4 |
+| Budget 扩展 token/time + QualityGate 去重（v1.1 基础） | `architecture-roadmap.md` §4.5 |
+| 新增 scratchpad / subagent / agent_message 工具 | `architecture-roadmap.md` §4.6 / §4.2 |

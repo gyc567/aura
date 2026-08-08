@@ -75,27 +75,33 @@ impl Tool for ListDirTool {
         }
 
         if !abs.is_dir() {
-            return Err(AgentError::Context(format!("{} is not a directory", abs.display())));
+            return Err(AgentError::Context(format!(
+                "{} is not a directory",
+                abs.display()
+            )));
         }
 
         let dir = std::fs::read_dir(&abs)
             .map_err(|e| AgentError::Context(format!("read_dir {} failed: {e}", abs.display())))?;
 
         let mut names: Vec<String> = dir
-            .filter_map(|e| e.ok())
+            .filter_map(std::result::Result::ok)
             .filter_map(|e| {
                 let name = e.file_name().to_string_lossy().into_owned();
                 if name.starts_with('.') {
                     return None; // 跳过隐藏文件
                 }
                 let kind = if e.path().is_dir() { "[dir]" } else { "[file]" };
-                Some(format!("{:<40} {}", name, kind))
+                Some(format!("{name:<40} {kind}"))
             })
             .collect();
         names.sort();
 
         if names.is_empty() {
-            Ok(ToolOutput::ok(format!("(empty directory: {})", abs.display())))
+            Ok(ToolOutput::ok(format!(
+                "(empty directory: {})",
+                abs.display()
+            )))
         } else {
             Ok(ToolOutput::ok(format!(
                 "{}\n{}",

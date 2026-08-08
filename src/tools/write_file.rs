@@ -23,7 +23,9 @@ impl WriteFileTool {
     /// 构造器。
     #[must_use]
     pub fn new() -> Self {
-        Self { max_bytes: 10_000_000 }
+        Self {
+            max_bytes: 10_000_000,
+        }
     }
 
     /// 设置字节上限。
@@ -33,7 +35,7 @@ impl WriteFileTool {
         self
     }
 
-    fn resolve_and_check(&self, path: &str, workspace: &Path) -> Result<std::path::PathBuf, AgentError> {
+    fn resolve_and_check(path: &str, workspace: &Path) -> Result<std::path::PathBuf, AgentError> {
         let rel = Path::new(path);
         let abs = if rel.is_absolute() {
             rel.to_path_buf()
@@ -114,7 +116,7 @@ impl Tool for WriteFileTool {
             )));
         }
 
-        let abs = self.resolve_and_check(path, &ctx.workspace)?;
+        let abs = Self::resolve_and_check(path, &ctx.workspace)?;
 
         // 拒绝敏感路径
         if crate::context::is_sensitive(&abs) {
@@ -126,8 +128,9 @@ impl Tool for WriteFileTool {
 
         // 确保父目录存在
         if let Some(parent) = abs.parent() {
-            std::fs::create_dir_all(parent)
-                .map_err(|e| AgentError::Context(format!("mkdir {:?} failed: {e}", parent)))?;
+            std::fs::create_dir_all(parent).map_err(|e| {
+                AgentError::Context(format!("mkdir {} failed: {e}", parent.display()))
+            })?;
         }
 
         std::fs::write(&abs, content)

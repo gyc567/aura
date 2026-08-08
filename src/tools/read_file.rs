@@ -23,7 +23,9 @@ impl ReadFileTool {
     /// 构造器。
     #[must_use]
     pub fn new() -> Self {
-        Self { max_bytes: 1_000_000 }
+        Self {
+            max_bytes: 1_000_000,
+        }
     }
 
     /// 设置字节上限。
@@ -33,7 +35,7 @@ impl ReadFileTool {
         self
     }
 
-    fn resolve_and_check(&self, path: &str, workspace: &Path) -> Result<std::path::PathBuf, AgentError> {
+    fn resolve_and_check(path: &str, workspace: &Path) -> Result<std::path::PathBuf, AgentError> {
         let rel = Path::new(path);
         let abs = if rel.is_absolute() {
             rel.to_path_buf()
@@ -95,7 +97,7 @@ impl Tool for ReadFileTool {
             .and_then(|v| v.as_str())
             .ok_or_else(|| AgentError::InvalidArguments("missing `path` field".into()))?;
 
-        let abs = self.resolve_and_check(path, &ctx.workspace)?;
+        let abs = Self::resolve_and_check(path, &ctx.workspace)?;
 
         // 拒绝敏感路径
         if crate::context::is_sensitive(&abs) {
@@ -108,7 +110,7 @@ impl Tool for ReadFileTool {
         let metadata = std::fs::metadata(&abs)
             .map_err(|e| AgentError::Context(format!("stat {} failed: {e}", abs.display())))?;
 
-        if metadata.len() as usize > self.max_bytes {
+        if metadata.len() > self.max_bytes as u64 {
             return Err(AgentError::Context(format!(
                 "file {} exceeds {} bytes",
                 abs.display(),
@@ -120,7 +122,7 @@ impl Tool for ReadFileTool {
             .map_err(|e| AgentError::Context(format!("read {} failed: {e}", abs.display())))?;
 
         // 检测二进制
-        if bytes.iter().any(|&b| b == 0) {
+        if bytes.contains(&0) {
             return Err(AgentError::Context(format!(
                 "binary file {} not readable as text",
                 abs.display()

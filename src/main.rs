@@ -3,7 +3,7 @@
 //! v1 范围：
 //! - 单任务模式：`aura <INSTRUCTION>`。
 //! - 通过 `--fake-model` 启用确定性脚本（无网络），或 `--api-key` + `--endpoint` + `--model` 启用 HTTP 模型。
-//! - 默认工具集：read_file, write_file, run_command, list_dir, grep_files, find_files, todo_write。
+//! - 默认工具集：`read_file`, `write_file`, `run_command`, `list_dir`, `grep_files`, `find_files`, `todo_write`。
 //! - SIGINT handler：设置 `Arc<AtomicBool>`，循环 graceful 停止。
 //! - 文本输出（默认）或 JSON（`--json`）。
 //!
@@ -167,9 +167,7 @@ fn build_registry(tools: &[String]) -> Result<InMemoryRegistry, AgentError> {
             "grep_files" => built.push(Arc::new(GrepFilesTool::new())),
             "find_files" => built.push(Arc::new(FindFilesTool::new())),
             other => {
-                return Err(AgentError::Context(format!(
-                    "unknown tool: `{other}`"
-                )));
+                return Err(AgentError::Context(format!("unknown tool: `{other}`")));
             }
         }
     }

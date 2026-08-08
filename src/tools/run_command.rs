@@ -105,12 +105,12 @@ impl Tool for RunCommandTool {
             })
             .unwrap_or_default();
 
-        let argv: Vec<String> = std::iter::once(command.to_string())
+        let full_argv: Vec<String> = std::iter::once(command.to_string())
             .chain(args.iter().cloned())
             .collect();
 
         // 预检（regex 高危模式检测）
-        let precheck = crate::precheck::analyze(&argv)?;
+        let precheck = crate::precheck::analyze(&full_argv)?;
         if precheck.tier == crate::precheck::RiskTier::High {
             return Err(AgentError::CommandPolicy(format!(
                 "high-risk command blocked: categories={:?}",
@@ -126,7 +126,7 @@ impl Tool for RunCommandTool {
             } else {
                 ctx.workspace.join(rel)
             };
-            let abs = abs.canonicalize().unwrap_or_else(|_| abs);
+            let abs = abs.canonicalize().unwrap_or(abs);
             if !abs.starts_with(&ctx.workspace) {
                 return Err(AgentError::PathPolicy(format!(
                     "working_directory {} escapes workspace",
@@ -145,7 +145,7 @@ impl Tool for RunCommandTool {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .output()
-            .map_err(|e| AgentError::Context(format!("failed to spawn {}: {e}", command)))?;
+            .map_err(|e| AgentError::Context(format!("failed to spawn {command}: {e}")))?;
 
         let stdout = output.stdout;
         let stderr = output.stderr;
@@ -153,28 +153,13 @@ impl Tool for RunCommandTool {
 
         let mut combined = stdout;
         combined.extend_from_slice(&stderr);
-        let truncated = if combined.len() > self.max_output_bytes {
+        if combined.len() > self.max_output_bytes {
             combined.truncate(self.max_output_bytes);
             combined.extend_from_slice(b"\n... (output truncated)");
-            true
-        } else {
-            false
-        };
+        }
 
         let stdout_str = String::from_utf8_lossy(&combined);
-        let summary = if truncated {
-            format!(
-                "exit={}\n{}",
-                exit_code,
-                stdout_str
-            )
-        } else {
-            format!(
-                "exit={}\n{}",
-                exit_code,
-                stdout_str
-            )
-        };
+        let summary = format!("exit={exit_code}\n{stdout_str}");
 
         if exit_code == 0 {
             Ok(ToolOutput::ok(summary))

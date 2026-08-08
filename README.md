@@ -4,12 +4,12 @@ A minimal, testable Rust coding agent. Receives a task → collects workspace co
 
 ## Status
 
-**Phase 1–4 complete.** v1 in progress.
+**Phase 1–4 complete.** v1 in progress. **v1.1 planned**: Session layer + RLM-style subagents + working memory — see [`docs/architecture-roadmap.md`](docs/architecture-roadmap.md).
 
-- `cargo test`: 154 tests, all passing
+- `cargo test`: 198 tests, all passing
 - `cargo clippy`: 0 warnings
 - `cargo fmt --check`: passing
-- Coverage: ~80% (target: 100%)
+- Coverage: ~91% (target: 100%)
 
 ## Quick Start
 
@@ -38,32 +38,31 @@ cargo run --release -- --workspace /tmp/my-project --fake-model --json "Add a RE
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────┐
-│                    CLI (aura-cli)                   │
-│         --workspace --max-turns --policy            │
-└─────────────────────┬───────────────────────────────┘
-                      │
-                      ▼
-┌─────────────────────────────────────────────────────┐
-│              Agent (while loop driver)              │
-│  while !interrupted && turns < budget               │
-│    → model.complete()                              │
-│    → if Decision::Call → registry.execute()         │
-│    → else break (Done/Ask/Fail/Absent)             │
-└──────┬──────────────────────────────────┬───────────┘
-       │                                  │
-       ▼                                  ▼
-┌──────────────┐               ┌──────────────────────┐
-│   Model      │               │   Tool Registry      │
-│  Gateway     │               │   (capabilities +    │
-│  (trait)     │               │    command med.)     │
-└──────────────┘               └──────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│  L1 表现层  CLI (aura-cli)                                  │
+│         --workspace --max-turns --policy --resume --json   │
+├─────────────────────────────────────────────────────────────┤
+│  L2 会话层  Session (v1.1)  — JSONL transcript + artifacts │
+│                                                             │
+├─────────────────────────────────────────────────────────────┤
+│  L3 执行层  Agent (while loop driver)                       │
+│    while !interrupted && turns < budget && tool_errors < 3 │
+│      → model.complete()                                     │
+│      → if Decision::Call → registry.execute() → 回填       │
+│      → else break (Done/Ask/Fail/Absent)                   │
+├─────────────────────────────────────────────────────────────┤
+│  L4 能力层  Tool Registry + Policy + Precheck + Reminders   │
+├─────────────────────────────────────────────────────────────┤
+│  L5 模型层  ModelGateway (OpenAI-compatible HTTP)            │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### Core Loop Invariants
+> v1 当前为单进程 CLI，单线程 `tokio` 运行时；v1.1 引入 Session 层 + RLM 式子代理，升级为 `multi_thread` 运行时。详见 [`docs/architecture-roadmap.md`](docs/architecture-roadmap.md)。
 
-- **Only exits on**: SIGINT / budget exhausted / model returns non-`Call` / tool error
-- **Tool errors end the loop immediately** — never fed back to the model
+### Core Loop Invariants (v0.6)
+
+- **Only exits on**: SIGINT / budget exhausted / `ErrorBudget` exhausted / model returns non-`Call`
+- **Tool errors feed back to the model** with `ErrorBudget` (default 3) — lets the model self-correct; budget prevents runaway loops
 - `recorder.transition()` failures are logged but never block execution
 
 ## Key Design Decisions
@@ -74,7 +73,7 @@ cargo run --release -- --workspace /tmp/my-project --fake-model --json "Add a RE
 | `todo_write` is the primary tool | Explicit planning beats implicit |
 | Tool result reminders on every call | Static reminders beat one-shot system prompts |
 | Regex pre-check for `run_command` | Fast, deterministic, no API call |
-| Tool errors end loop immediately | Avoids hallucination from re-prompting on errors |
+| Tool errors feed back to the model with an error budget (default 3) | Lets the model self-correct; the budget prevents runaway loops (v0.6 revision, see `docs/architecture-roadmap.md` §4.1) |
 | `Arc<AtomicBool>` for SIGINT | Safe in async context without `block_on` |
 
 ## Modules
@@ -94,6 +93,9 @@ cargo run --release -- --workspace /tmp/my-project --fake-model --json "Add a RE
 | `context` | Workspace file collection, sensitive path detection, truncation |
 | `event` | `AgentEvent` + `EventSink` for audit trail |
 | `agent` | `run()` async function — the while loop driver |
+| `session` | (v1.1) `Session` + `Transcript` — message history, artifacts, resumability |
+| `children` | (v1.1) RLM-style subagents — `ChildRegistry`, admission handle, `agent_message` |
+| `tools/scratchpad` | (v1.1) Persistent named working memory (`artifacts/scratchpad.json`) |
 | `cli` | Clap-based argument parsing |
 | `output` | Text and JSON report formatting |
 
@@ -102,12 +104,13 @@ cargo run --release -- --workspace /tmp/my-project --fake-model --json "Add a RE
 - **[Claude Code](https://jannesklaas.github.io/ai/2025/07/20/claude-code-agent-design.html)** — single loop + TODO tool + tool reminders + sub-agents via same instance
 - **[pi_agent_rust](https://github.com/gyc567/pi_agent_rust)** — capability gates + two-phase execution + evidence-driven claims
 - **[pi](https://github.com/earendil-works/pi)** — TypeScript reference, module decomposition ideas
+- **[prime-agent](https://github.com/PrimeIntellect-ai/prime-agent)** — RLM programming model, session/persistence, self-improving harness (v0.6 roadmap: [`docs/architecture-roadmap.md`](docs/architecture-roadmap.md))
 
 ## Non-Goals (v1)
 
 - TUI / interactive mode
 - Multi-provider routing (OpenAI-compatible only)
-- Session persistence (JSONL / SQLite)
+- Session persistence — v1.1 via the Session layer (JSONL transcript + `--resume`), see [`docs/architecture-roadmap.md`](docs/architecture-roadmap.md) §4.3
 - Long-term memory / knowledge graphs
 - Critic / self-review mode
 - Remote RPC protocol

@@ -126,9 +126,9 @@ impl GrepFilesTool {
         }
 
         let entries = std::fs::read_dir(dir)
-            .map_err(|e| AgentError::Context(format!("read_dir {:?} failed: {e}", dir)))?;
+            .map_err(|e| AgentError::Context(format!("read_dir {} failed: {e}", dir.display())))?;
 
-        for entry in entries.filter_map(|e| e.ok()) {
+        for entry in entries.filter_map(std::result::Result::ok) {
             if *count >= self.max_lines {
                 break;
             }
@@ -137,8 +137,7 @@ impl GrepFilesTool {
             // 跳过隐藏文件/目录
             if path
                 .file_name()
-                .map(|n| n.to_string_lossy().starts_with('.'))
-                .unwrap_or(false)
+                .is_some_and(|n| n.to_string_lossy().starts_with('.'))
             {
                 continue;
             }
@@ -157,12 +156,7 @@ impl GrepFilesTool {
                         }
                         if line.to_lowercase().contains(pattern) {
                             *count += 1;
-                            results.push(format!(
-                                "{}:{}:{}",
-                                path.display(),
-                                line_num + 1,
-                                line
-                            ));
+                            results.push(format!("{}:{}:{}", path.display(), line_num + 1, line));
                         }
                     }
                 }
