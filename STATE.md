@@ -1,20 +1,26 @@
 # Loop State — Aura Coding Agent
 
-Last run: 2026-08-08T07:05Z (Phase 5 quality gates complete)
+Last run: 2026-08-08T08:05Z (Phase 5 quality gates — L2 auto-fix)
 
 ## High Priority (loop is acting or waiting on human)
 
-- **Phase 5 Complete (FAIL)**: 质量门禁检查
-  - cargo test: ✅ PASS (154 tests)
-  - cargo fmt --check: ✅ PASS
-  - cargo clippy: ✅ PASS (0 warnings)
-  - cargo llvm-cov: ❌ FAIL — 80.19% regions / 78.81% fns / 80.41% lines (需 100%)
-    - 未覆盖: cli.rs(0%), model_http.rs(0%), model.rs(14%), output.rs(57%), main.rs(80%)
-  - cargo audit: ❌ 网络错误 (git https config issue)
+- **Phase 5: 80% → 91%** — L2 auto-fix added 44 tests (154 → 198)
+  - `tests/model.rs` (9): ModelStream/StreamEvent 覆盖
+  - `tests/output.rs` (14): 所有 StopReasonPayload 变体
+  - `tests/error.rs` (+2): exit_code() 所有变体
+  - `tests/model_http.rs` (8): HttpConfig + #[cfg(test)] wire 格式
+  - `src/model_http.rs #[cfg(test)]` (10): convert_messages/schemas + parse_decision
+  - `cargo fmt --check` ✅
+  - `cargo clippy` ✅ (0 warnings)
+  - `cargo audit` ❌ (网络问题)
+- **Phase 5 未达到 100%** — 需要人工决定：
+  - `cli.rs (0%)`: Clap derive 生成代码，集成测试不覆盖模块本身
+  - `model_http (78%)`: complete() 需 mock HTTP server
+  - `main.rs (80%)`: 二进制辅助函数难以从集成测试覆盖
 
 ## Watch List
 
-- **Phase 5 FAIL**: 需 L2 添加测试覆盖至 100%（cli / model_http / model / output / main）
+- **Phase 5 coverage at 91%** — 需要人工决定是否接受或继续修复
 - cargo audit 因网络问题无法运行
 - Phase 6 (subagent), Phase 7 (plugin v2) 待 Phase 5 通过
 

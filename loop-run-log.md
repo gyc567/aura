@@ -93,13 +93,16 @@ Append one entry per run. Prune entries older than 30 days.
   "items_found": 0,
   "actions_taken": 0,
   "escalations": 0,
-  "tokens_estimate": 5000,
-  "outcome": "report-only",
+  "tokens_estimate": 25000,
+  "outcome": "fix-proposed",
+  "tests_added": 44,
+  "tests_total": 198,
+  "coverage_regions": "80% → 91%",
   "quality_gates": {
-    "cargo_test": "PASS (154 tests)",
+    "cargo_test": "PASS (198 tests, +44 new)",
     "cargo_fmt_check": "PASS",
     "cargo_clippy": "PASS (0 warnings)",
-    "cargo_llvm_cov": "FAIL (80.19% regions, 78.81% functions, 80.41% lines; need 100%)",
+    "cargo_llvm_cov": "PARTIAL (80% → 91% regions; not 100%)",
     "cargo_audit": "FAIL (network error: git https config issue)"
   },
   "next": "Phase 5 llvm-cov result, Phase 6 (subagent), Phase 7 (plugin v2)"
