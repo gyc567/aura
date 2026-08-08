@@ -44,6 +44,9 @@ fn run(args: &CliArgs) -> Result<ExitCode, AgentError> {
     let workspace = resolve_workspace(args.workspace.as_deref())?;
     let task = TaskRequest::new(&args.instruction, workspace.clone(), args.max_turns)?;
     let budget = Budget::new(args.max_turns, 100_000)?;
+    // Policy is constructed here to validate CLI input, but NOT yet wired into Agent::run.
+    // v1 design defers tool-call policy gating to a future phase.
+    // Wire Policy::evaluate_* methods into the agent loop when file/run_command tools land.
     let _policy = match args.policy {
         CliPolicyLevel::Strict => Policy::strict(workspace.clone()),
         CliPolicyLevel::Balanced => Policy::balanced(workspace.clone()),
@@ -140,10 +143,14 @@ fn choose_model(args: &CliArgs) -> ModelChoice {
         return ModelChoice::Http(HttpModelAdapter::new(cfg));
     }
     // 缺 endpoint/model/api_key → fallback 到 fake，避免启动失败
+    eprintln!(
+        "warning: no API key or endpoint provided; running in fake mode (no real agentic \
+        behavior). Provide --api-key and --endpoint for actual use, or pass --fake-model \
+        explicitly."
+    );
     ModelChoice::Fake(build_fake_model())
 }
 
-/// 构造工具注册表。v1 支持 `todo_write`；其他工具名保留为 Phase 2.5+。
 fn build_registry(tools: &[String]) -> Result<InMemoryRegistry, AgentError> {
     let mut built: Vec<Arc<dyn aura::Tool>> = Vec::new();
     for name in tools {
@@ -179,7 +186,11 @@ impl ModelGateway for FakeModel {
     ) -> std::pin::Pin<
         Box<dyn std::future::Future<Output = Result<ModelResponse, AgentError>> + Send + '_>,
     > {
-        let next = self.queue.lock().unwrap().remove(0);
+        let next = {
+            let mut queue = self.queue.lock().unwrap();
+            assert!(!queue.is_empty(), "FakeModel queue exhausted — provide enough decisions for all turns");
+            queue.remove(0)
+        };
         Box::pin(async move {
             Ok(ModelResponse {
                 raw: format!("{next:?}"),
