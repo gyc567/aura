@@ -11,5 +11,6 @@ pub mod read_file;
 pub mod run_command;
 pub mod scratchpad;
 pub mod subagent;
+pub mod subagent_result;
 pub mod todo_write;
 pub mod write_file;

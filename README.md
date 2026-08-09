@@ -139,7 +139,7 @@ See [`docs/bench-framework.md`](docs/bench-framework.md) for the task-spec forma
 │                     Budget(turns) + ErrorBudget(3)           │
 ├──────────────────────────────────────────────────────────────┤
 │  L4  Capability     ToolRegistry + Policy + Precheck + Reminders │
-│                     scratchpad · subagent · agent_message    │
+│               scratchpad · subagent · agent_message · subagent_result │
 ├──────────────────────────────────────────────────────────────┤
 │  L5  Model          ModelGateway (OpenAI-compatible HTTP/SSE)│
 └──────────────────────────────────────────────────────────────┘
@@ -165,7 +165,7 @@ Core-loop invariants:
 | `session` | `Session` + `Transcript` — message history, artifacts, resume |
 | `compaction` | Layered-context summarization (fast-model or rule fallback) |
 | `children` | RLM-style subagents — `ChildRegistry`, handles, `agent_message` |
-| `tools` | `todo_write`, `read_file`, `write_file`, `run_command`, `list_dir`, `grep_files`, `find_files`, `scratchpad`, `subagent`, `agent_message` |
+| `tools` | `todo_write`, `read_file`, `write_file`, `run_command`, `list_dir`, `grep_files`, `find_files`, `scratchpad`, `subagent`, `agent_message`, `subagent_result` |
 | `bench` | TaskSpec / Runner / Summary — `aura bench` |
 | `plugin` | Dynamic skill loading (plugin spec v2) |
 | `policy` / `precheck` | Capability gates + regex command-risk analysis |

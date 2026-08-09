@@ -26,6 +26,12 @@ Last run: 2026-08-09T17:00Z (Full audit of uncommitted changes; 3H+4M+3S finding
 - **Phase 5 accepted at 91%**: remaining 9% (`cli.rs` Clap derive, `model_http::complete()` no mock HTTP, `main.rs` binary helpers) — requires architectural decision; defer to Phase 5 revisit
 - **Phase 6 ✅**: scratchpad CLI wiring + max_wall_time + Budget extension
 - **RLM subagent** (Phase 6): ✅ complete — ChildRegistry + subagent tool + agent_message tool + multi-thread runtime + max_depth recursion
+- **subagent 完整化（2026-08-09 第三轮）** — ✅ COMPLETE
+  - 新增 `subagent_result` 工具（架构 §4.2 规格）：`{child_id}` → `{child_id, name, status, result}`；running/completed/failed + 错误分支
+  - 子会话 transcript 持久化：`Session::with_transcript(JsonlTranscript)` 写到 `artifacts/children/<child_id>.jsonl`（清理了占位死代码）
+  - 端到端 spawn 测试 `tests/subagent_spawn.rs`（+5）：父 spawn → 子代理后台跑完 → registry Completed + 结果可收集；子代理执行工具循环（todo_write 入 transcript）；subagent_result 状态/错误分支
+  - 全量 385 tests / fmt / clippy 全绿；README 工具清单同步
+- **cargo audit** — ✅ 0 vulnerabilities（180 deps）。本机 `~/.gitconfig` 的 `http.version=http/1.1`（小写非法）导致 libgit2 失败；用 `GIT_CONFIG_GLOBAL=/dev/null cargo audit` 绕过，未改用户全局配置
 
 ## Quality Gates
 
@@ -49,7 +55,8 @@ Last run: 2026-08-09T17:00Z (Full audit of uncommitted changes; 3H+4M+3S finding
 ## Watch List
 
 - Phase 5 revisit: mock HTTP server for `complete()` coverage
-- cargo audit (network unavailable)
+- ~~cargo audit~~ ✅ 0 vulnerabilities（2026-08-09，需 `GIT_CONFIG_GLOBAL=/dev/null` 绕过非法 http.version）
+- subagent inbox 消费：`agent_message` 投递进子代理 inbox，但子代理循环尚未读取（架构 §4.2 语义待接线）
 
 ## Work Log — 完整 / 未完整（2026-08-09 第二轮 push 后）
 
@@ -57,7 +64,8 @@ Last run: 2026-08-09T17:00Z (Full audit of uncommitted changes; 3H+4M+3S finding
 
 | 工作 | 交付物 |
 |------|--------|
-| MVP：可安装可运行 | bin 统一 `aura`；`cargo install` 验证；fake-model 端到端 exit 0；README 补全 |
+| **subagent 完整化（第三轮）** | `subagent_result` 工具 + 子会话 JSONL transcript + spawn E2E 测试（+5）；385 tests 全绿 |
+| **cargo audit** | 0 vulnerabilities（180 deps）；`GIT_CONFIG_GLOBAL=/dev/null` 绕过非法 gitconfig | bin 统一 `aura`；`cargo install` 验证；fake-model 端到端 exit 0；README 补全 |
 | 配置文件支持 | `~/.config/aura/config.toml`，优先级 CLI>config>env，坏配置 fail fast；10 测试 |
 | CI/CD release 自动化 | 5 平台原生矩阵 + tar.gz/zip 打包 + tag 触发 draft release + install.sh |
 | 安装脚本 | 平台检测、curl `--`、AURA_SHA256 校验、PATH 提示、自验；本地端到端实测通过 |
@@ -77,7 +85,7 @@ Last run: 2026-08-09T17:00Z (Full audit of uncommitted changes; 3H+4M+3S finding
 | macos-x64 CI | 进行中 | 第二/三轮 run 排队（Intel runner 繁忙），5/6 平台已验证 |
 | tag v0.1.0 + release | 待做 | CI 全绿后打 tag 触发 publish → draft release → 测 install.sh 真实下载 |
 | 真实模型 E2E | 需人工 | 环境只有 ANTHROPIC_API_KEY / EM_API_KEY（非 OpenAI-compatible）；需提供 endpoint + model |
-| subagent spawn 完整测试 | 建议 | 覆盖率 subagent 仍 ~20%（完整执行路径需 fake model 驱动子代理） |
+| ~~subagent spawn 完整测试~~ | ✅ 完成 | `tests/subagent_spawn.rs` +5 测试；顺带补 `subagent_result` 工具 + 子会话 transcript 落盘（2026-08-09 第三轮） |
 | main.rs binary helpers 单测 | 建议 | bin 内函数需重构到 lib 或集成测试 |
 | bench submit / Docker sandbox | 未来 | Docker daemon 本机不可用 |
 | cargo audit | 待做 | 网络受限未跑 |

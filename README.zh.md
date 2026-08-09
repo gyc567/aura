@@ -99,7 +99,7 @@ cargo run --release -- --workspace /tmp/my-project --fake-model --json "Add a RE
 | `event` | `AgentEvent` + `EventSink` 审计流 |
 | `agent` | `run()` 异步函数 — while 循环驱动 |
 | `session` | (v1.1) `Session` + `Transcript` — 消息历史、工件、可恢复性 |
-| `children` | (v1.1) RLM 式子代理 — `ChildRegistry`, admission handle, `agent_message` |
+| `children` | (v1.1) RLM 式子代理 — `ChildRegistry`, admission handle, `agent_message`, `subagent_result` |
 | `tools/scratchpad` | (v1.1) 持久化工作记忆 (`artifacts/scratchpad.json`) |
 | `cli` | 基于 clap 的参数解析 |
 | `output` | 文本和 JSON 报告格式 |

@@ -36,6 +36,7 @@ use aura::registry::ToolRegistry;
 use aura::session::Session;
 use aura::tools::agent_message::AgentMessageTool;
 use aura::tools::subagent::SubagentTool;
+use aura::tools::subagent_result::SubagentResultTool;
 use aura::tools::{
     find_files::FindFilesTool, grep_files::GrepFilesTool, list_dir::ListDirTool,
     read_file::ReadFileTool, run_command::RunCommandTool, scratchpad::ScratchpadTool,
@@ -463,6 +464,7 @@ fn build_registry(
         max_depth,
     )));
     built.push(Arc::new(AgentMessageTool::new(child_registry.clone())));
+    built.push(Arc::new(SubagentResultTool::new(child_registry.clone())));
     Ok(InMemoryRegistry::new(built))
 }
 

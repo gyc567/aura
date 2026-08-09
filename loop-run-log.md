@@ -21,6 +21,41 @@ Append one entry per run. Prune entries older than 30 days.
 
 <!-- Loop appends below this line -->
 
+
+```json
+{
+  "run_id": "2026-08-09T22:00:00Z",
+  "pattern": "design-implementor (subagent completion: spawn E2E + subagent_result + transcript)",
+  "duration_s": 2400,
+  "items_found": 4,
+  "actions_taken": 4,
+  "escalations": 0,
+  "tokens_estimate": 30000,
+  "outcome": "fix-proposed",
+  "fixes": [
+    "New tool subagent_result (Architecture 4.2): {child_id} -> {child_id, name, status, result}; running/completed/failed + empty/unknown/bad-json error branches",
+    "Child session transcript persisted to artifacts/children/<child_id>.jsonl via Session::with_transcript(JsonlTranscript); removed dead placeholder code in subagent.rs",
+    "Wire SubagentResultTool into main.rs build_registry (always added with subagent/agent_message)",
+    "New tests/subagent_spawn.rs (+5): parent spawn -> child runs in background (multi_thread runtime) -> registry Completed + result collectible; child executes todo_write loop (tool call lands in child transcript); subagent_result running/error branches"
+  ],
+  "files_created": ["src/tools/subagent_result.rs", "tests/subagent_spawn.rs"],
+  "files_modified": ["src/tools/mod.rs", "src/tools/subagent.rs", "src/main.rs", "README.md", "README.zh.md", "STATE.md"],
+  "tests_total": 385,
+  "tests_new": 5,
+  "clippy_warnings": 0,
+  "quality_gates": {
+    "cargo_fmt_check": "PASS",
+    "cargo_clippy": "PASS (0 warnings on --all-targets)",
+    "cargo_test": "PASS (385 tests, +5 subagent spawn)",
+    "cargo_audit": "PASS (0 vulnerabilities, 180 deps; GIT_CONFIG_GLOBAL=/dev/null workaround for invalid ~/.gitconfig http.version=http/1.1)"
+  },
+  "ci_status": {
+    "latest_run_31307915435": "5/6 green (Quality, linux x64/arm64, macos-arm64, windows-x64); macos-x64 still queued on GitHub Intel runners (~3.5h)",
+    "note": "nothing fixable locally; tag v0.1.0 + release blocked on human approval to push"
+  },
+  "next": "macos-x64 CI green -> tag v0.1.0 + release publish (needs human push approval); subagent inbox consumption in child loop (agent_message semantics); real-model E2E needs OpenAI-compatible endpoint"
+}
+
 ```json
 {
   "run_id": "2026-08-08T09:53:00Z",

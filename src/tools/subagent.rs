@@ -149,7 +149,6 @@ impl Tool for SubagentTool {
         .map_err(|e| AgentError::Context(e.to_string()))?;
 
         let child_id_str = child_id.to_string();
-        let child_name = args.name.clone();
         let model_label = args.model.clone();
 
         // Spawn child agent in background
@@ -157,15 +156,22 @@ impl Tool for SubagentTool {
         let registry = self.registry.clone();
         let tool_registry = child_registry;
         let interrupted = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let session_dir_for_child = session_dir.clone();
 
         tokio::spawn(async move {
             let mut sink = crate::event::VecEventSink::new();
             let budget = crate::state::Budget::new(12, 100_000)
                 .unwrap_or_else(|_| crate::state::Budget::new(12, 100_000).unwrap());
             let child_id_for_result = ChildId(child_id_str.clone());
-            let transcript_path = child_workspace_str.join(format!("{child_id_for_result}.jsonl"));
-            let mut session = crate::session::Session::new(child_workspace_str.clone(), None);
-            let _ = transcript_path;
+            // 子会话 transcript 持久化到 artifacts/children/<child_id>.jsonl (Architecture §4.2)。
+            let transcript_path = session_dir_for_child.join(format!("{child_id_str}.jsonl"));
+            let mut session = crate::session::Session::with_transcript(
+                Arc::new(crate::session::transcript::JsonlTranscript::new(
+                    transcript_path,
+                )),
+                child_workspace_str.clone(),
+                None,
+            );
             let result = crate::agent::run_with_session(
                 child_task,
                 &*model,
@@ -192,17 +198,6 @@ impl Tool for SubagentTool {
             if !is_ok {
                 registry.set_status(&child_id_for_result, ChildStatus::Failed);
             }
-
-            // Write transcript placeholder
-            let _ = child_name;
-            let _ = model_label;
-            let transcript_path = child_workspace_str
-                .parent()
-                .unwrap_or(&child_workspace_str)
-                .parent()
-                .unwrap_or(&child_workspace_str)
-                .join(format!("{child_id_str}.jsonl"));
-            let _ = transcript_path;
         });
 
         // Return admission handle
