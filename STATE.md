@@ -33,6 +33,10 @@ Last run: 2026-08-09T17:00Z (Full audit of uncommitted changes; 3H+4M+3S finding
   - 全量 385 tests / fmt / clippy 全绿；README 工具清单同步
 - **cargo audit** — ✅ 0 vulnerabilities（180 deps）。本机 `~/.gitconfig` 的 `http.version=http/1.1`（小写非法）导致 libgit2 失败；用 `GIT_CONFIG_GLOBAL=/dev/null cargo audit` 绕过，未改用户全局配置
 - **真实模型 E2E（MiniMax M2.5，2026-08-09 第四轮）** — ✅ COMPLETE，4 个真 bug 全修复
+- **tag v0.1.0 + Release 触发修复（2026-08-09 第五轮）** — ✅
+  - 发现 release.yml `on.push` 只匹配 `branches: [main]`，tag push 永远不触发 workflow（实测 tag 推送无 run）→ 加 `tags: ['v*']`
+  - tag v0.1.0 已推送（指向含修复的提交 b7c16ff），Release workflow 已触发（run 31318810065），publish 等待 build 矩阵（macos-x64 排队中）
+  - `~/.gitconfig` 已改 `HTTP/1.1`（大写）：git 警告消除，cargo audit 免 workaround
   - B1 任务指令从未发给 provider：`agent.rs` 把指令放 `ModelRequest.system`（HTTP 适配器忽略），messages 里没有 user 指令 → MiniMax 400 `chat content is empty`。修复：session 注入 `Message::User`（幂等，resume 不重复）
   - B2 工具 schema 从未附加：`ToolRegistry` trait 无 `schemas()`，agent 不调 `with_tool_schemas` → 请求无 `tools` 字段 → 模型无法标准调用工具。修复：trait 加 `schemas()` + agent 挂载（+2 mock HTTP 测试）
   - B3 assistant 消息丢失 tool_calls：`Message::Assistant` 无 `tool_calls` 字段，循环也不 push assistant → MiniMax 400 `tool id not found`。修复：字段 + serde(default) 向后兼容 + 循环 push assistant（含 tool_calls）+ wire 转换（+1 测试）

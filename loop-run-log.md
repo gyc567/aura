@@ -24,6 +24,25 @@ Append one entry per run. Prune entries older than 30 days.
 
 ```json
 {
+  "run_id": "2026-08-09T14:35:00Z",
+  "pattern": "release-trigger (tag v0.1.0 + CI fix)",
+  "duration_s": 1200,
+  "items_found": 1,
+  "actions_taken": 3,
+  "escalations": 0,
+  "tokens_estimate": 10000,
+  "outcome": "in-progress",
+  "fixes": [
+    "release.yml on.push add tags: ['v*'] — tag pushes previously never triggered the workflow (only branches matched), so publish (refs/tags/v) could never run; found by pushing tag v0.1.0 and observing no run",
+    "~/.gitconfig http.version=http/1.1 -> HTTP/1.1 (human-approved): git warning gone, cargo audit works without GIT_CONFIG_GLOBAL workaround",
+    "tag v0.1.0 re-pointed at b7c16ff (with CI fix) and re-pushed; Release workflow run 31318810065 in progress; publish waits on build matrix incl. queued macos-x64"
+  ],
+  "next": "watch run 31318810065; when publish creates draft release -> test release/install.sh real download"
+}
+
+
+```json
+{
   "run_id": "2026-08-09T15:00:00Z",
   "pattern": "real-model-e2e (MiniMax M2.5, human-provided endpoint+key, L2)",
   "duration_s": 5400,
