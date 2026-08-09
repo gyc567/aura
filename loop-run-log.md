@@ -371,7 +371,187 @@ Append one entry per run. Prune entries older than 30 days.
     "Phase_3": "done",
     "Phase_4": "done",
     "Phase_5": "91_pct (accepted, deferred HTTP mock)",
-    "Phase_6_RLM": "done (ChildRegistry + subagent + agent_message + multi-thread)",
     "v1.2_Bench": "complete (8 tasks, 26 tests, diff report, CLI subcommands)"
   }
 }
+```
+
+```json
+{
+  "run_id": "2026-08-09T17:00:00Z",
+  "pattern": "design-implementor (Phase 7: compaction)",
+  "duration_s": 2400,
+  "items_found": 4,
+  "actions_taken": 6,
+  "escalations": 0,
+  "tokens_estimate": 30000,
+  "outcome": "fix-proposed",
+  "fixes": [
+    "Implement src/compaction.rs: LayeredContext + compact() + should_compact() + rules-based summarization",
+    "Wire compaction into agent.rs run_with_session: triggers at max_context_bytes * 80%, already_summarized flag prevents re-summarization",
+    "Add 13 compaction unit tests (trigger ratio, splits, scratchpad injection, model message order, message count)",
+    "Fix lib.rs duplicate module declarations from prior edit cascade"
+  ],
+  "files_created": ["src/compaction.rs"],
+  "files_modified": ["src/lib.rs", "src/agent.rs", "STATE.md", "loop-run-log.md"],
+  "tests_total": 279,
+  "tests_new": 13,
+  "clippy_warnings": 0,
+  "quality_gates": {
+    "cargo_fmt_check": "PASS",
+    "cargo_clippy": "PASS (0 warnings)",
+    "cargo_test": "PASS (279 tests, +13 compaction)"
+  },
+  "next": "Phase 7 plugin v2; Session ↔ scratchpad integration; Phase 5 revisit"
+}
+```
+
+```json
+{
+  "run_id": "2026-08-10T08:00:00Z",
+  "pattern": "design-implementor (Phase 7: Session↔scratchpad integration)",
+  "duration_s": 1200,
+  "items_found": 3,
+  "actions_taken": 4,
+  "escalations": 0,
+  "tokens_estimate": 15000,
+  "outcome": "fix-proposed",
+  "fixes": [
+    "Add Session::artifacts_dir() → workspace/artifacts (shared path)",
+    "Add Session::scratchpad_summary() → reads scratchpad.json, returns name:bytes summary",
+    "Wire session.scratchpad_summary() into agent.rs compaction block (replacing stale scratchpad::ScratchpadTool::summary call)",
+    "Add 2 session unit tests: session_scratchpad_summary_reads_file, session_artifacts_dir_is_workspace_artifacts"
+  ],
+  "files_modified": ["src/session/mod.rs", "src/agent.rs", "tests/session.rs", "STATE.md", "loop-run-log.md"],
+  "tests_total": 279,
+  "tests_new": 2,
+  "clippy_warnings": 0,
+  "quality_gates": {
+    "cargo_fmt_check": "PASS",
+    "cargo_clippy_lib": "PASS (0 warnings)",
+    "cargo_test": "PASS (279 tests)"
+  },
+  "next": "Phase 7 plugin v2 (fix pre-existing clippy); Phase 5 revisit"
+}
+```
+
+```json
+{
+  "run_id": "2026-08-10T09:00:00Z",
+  "pattern": "quality-gates (fix pre-existing clippy in src/plugin/)",
+  "duration_s": 600,
+  "items_found": 6,
+  "actions_taken": 6,
+  "escalations": 0,
+  "tokens_estimate": 5000,
+  "outcome": "fix-proposed",
+  "fixes": [
+    "manifest.rs: assert format strings: `{name}` directly in assert! body (2 tests)",
+    "mcp.rs: sort -> sort_unstable()",
+    "lifecycle.rs: removed stale unused import (already used in non-test code)",
+    "secret.rs: env set_var/remove_var wrapped in unsafe { } + #[allow(unsafe_code)] on test",
+    "session.rs: summary.as_ref().map(String::as_str) -> summary.as_deref().unwrap()"
+  ],
+  "files_modified": ["src/plugin/manifest.rs", "src/plugin/mcp.rs", "src/plugin/lifecycle.rs", "src/plugin/secret.rs", "tests/session.rs"],
+  "tests_total": 279,
+  "tests_new": 0,
+  "clippy_warnings": 0,
+  "quality_gates": {
+    "cargo_fmt_check": "PASS",
+    "cargo_clippy": "PASS (0 warnings on --all-targets)",
+    "cargo_test": "PASS (279 tests, 0 failed)"
+  },
+  "next": "Phase 5 revisit (mock HTTP for complete() coverage)"
+}
+```
+
+```json
+{
+  "run_id": "2026-08-09T08:28:28Z",
+  "pattern": "mvp-completion (goal-mode, installable+runnable MVP)",
+  "duration_s": 1200,
+  "items_found": 4,
+  "actions_taken": 4,
+  "escalations": 0,
+  "tokens_estimate": 30000,
+  "outcome": "fix-proposed",
+  "fixes": [
+    "bin rename aura-cli -> aura: 7x env!(\"CARGO_BIN_EXE_aura-cli\") + bench default agent cmd (tests/bench.rs, tests/cli.rs, src/bench/runner.rs, src/bench/report.rs, src/cli.rs) — unblocks bench/cli test targets",
+    "README.md: was empty (0 bytes) — wrote full install/usage/CLI-reference/architecture doc",
+    "doc残留统一: README.zh.md status line + architecture diagram, docs/bench-framework.md aura-cli refs",
+    "install+E2E verified: cargo install --root /tmp/aura-install; installed `aura` runs fake-model JSON/text tasks (exit 0); bench list (8 tasks) + bench run chain (setup->agent->verify->report)"
+  ],
+  "files_modified": ["Cargo.toml", "tests/bench.rs", "tests/cli.rs", "src/bench/runner.rs", "src/bench/report.rs", "src/cli.rs", "README.md", "README.zh.md", "docs/bench-framework.md"],
+  "tests_total": 345,
+  "tests_new": 0,
+  "clippy_warnings": 0,
+  "quality_gates": {
+    "cargo_fmt_check": "PASS",
+    "cargo_clippy": "PASS (0 warnings on --all-targets)",
+    "cargo_test": "PASS (345 tests, 0 failed)"
+  },
+  "next": "git commit review; real-model E2E with API key; Phase 5 revisit (mock HTTP)"
+}
+```
+
+```json
+{
+  "run_id": "2026-08-09T16:40:00Z",
+  "pattern": "release-automation (goal-mode: GitHub Actions + config file support)",
+  "duration_s": 2400,
+  "items_found": 4,
+  "actions_taken": 4,
+  "escalations": 0,
+  "tokens_estimate": 40000,
+  "outcome": "fix-proposed",
+  "fixes": [
+    "config file support: new src/config.rs (load/load_from/config_path/resolve; precedence CLI > ~/.config/aura/config.toml > AURA_API_KEY env; fail-fast on parse error) + cli.rs api_key env removal + main.rs integration + config.example.toml + 10 tests (7 unit + 3 e2e)",
+    "release.yml: added linux-arm64 (ubuntu-24.04-arm native), macos-arm64 -> macos-latest (Apple Silicon), windows -> x86_64-pc-windows-msvc native, package step bundles README/LICENSE/config.example.toml via tar -a, publish uploads 5 assets",
+    "release/install.sh: real REPO (gyc567/aura), linux-arm64 mapping, PATH check + per-shell hint, curl -fsSL + tmp dir + --version self-check; env overrides AURA_REPO/AURA_VERSION/AURA_INSTALL_DIR/AURA_RELEASE_URL",
+    "docs: README.md Install (one-line script + source) + new Configuration section; LICENSE (MIT) added"
+  ],
+  "files_modified": ["src/config.rs", "src/cli.rs", "src/main.rs", "src/lib.rs", "Cargo.toml", "config.example.toml", "tests/config.rs", ".github/workflows/release.yml", "release/install.sh", "LICENSE", "README.md", "STATE.md"],
+  "tests_total": 355,
+  "tests_new": 10,
+  "clippy_warnings": 0,
+  "quality_gates": {
+    "cargo_fmt_check": "PASS",
+    "cargo_clippy": "PASS (0 warnings on --all-targets)",
+    "cargo_test": "PASS (355 tests, 0 failed)"
+  },
+  "next": "push + observe Actions on real repo; real-model E2E with API key"
+}
+```
+
+```json
+{
+  "run_id": "2026-08-09T17:00:00Z",
+  "pattern": "full-audit (goal-mode: review + security_review + manual fix)",
+  "duration_s": 1800,
+  "items_found": 13,
+  "actions_taken": 7,
+  "escalations": 0,
+  "tokens_estimate": 50000,
+  "outcome": "fix-proposed",
+  "fixes": [
+    "H1 release.yml: upload path -> root artifact + if-no-files-found:error",
+    "H2 compaction.rs: UTF-8 char-boundary-safe preview slice + multibyte test",
+    "H3 release.yml: Windows zip via PowerShell Compress-Archive (native)",
+    "S1 install.sh: curl -o file -- URL (option order) + AURA_SHA256 checksum",
+    "S2 release.yml: tag validation step (^vX.Y.Z$)",
+    "S3 install.sh: unzip single-entry extract only",
+    "M4 session.rs: transcript append before in-memory push",
+    "H4-H6 found during fix verification: curl -- position, ARTIFACT#*. ext, macOS sha256sum lacks -c -> prefer shasum"
+  ],
+  "files_modified": [".github/workflows/release.yml", "release/install.sh", "src/compaction.rs", "src/session/mod.rs", "docs/audit-2026-08-09.md", "STATE.md", "loop-run-log.md"],
+  "tests_total": 356,
+  "tests_new": 1,
+  "clippy_warnings": 0,
+  "quality_gates": {
+    "cargo_fmt_check": "PASS",
+    "cargo_clippy": "PASS (0 warnings on --all-targets)",
+    "cargo_test": "PASS (356 tests, 0 failed)"
+  },
+  "next": "M1 compaction write-back to session; M2 scratchpad concurrency; push + observe Actions"
+}
+```

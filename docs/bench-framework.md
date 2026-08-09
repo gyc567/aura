@@ -134,7 +134,7 @@ tags:
 ```
 aura bench run [OPTIONS]
   --tasks <glob>           # 默认 bench/tasks/*.yaml
-  --agent <agent-cmd>      # 要评测的 agent 命令，默认 cargo run --bin aura-cli
+  --agent <agent-cmd>      # 要评测的 agent 命令，默认 cargo run --bin aura
   --sandbox <mode>         # none | docker | nix（默认 none）
   --output <dir>           # 结果目录，默认 bench/results/<timestamp>/
   --parallel <n>           # 并行任务数（默认 CPU 核数）
@@ -169,7 +169,7 @@ aura bench run [OPTIONS]
 {
   "run_id": "2026-08-08-run1",
   "timestamp": "2026-08-08T15:30:00Z",
-  "agent": "aura-cli (dev)",
+  "agent": "aura (dev)",
   "total_tasks": 12,
   "passed": 8,
   "failed": 4,
@@ -216,7 +216,7 @@ aura bench report <results-dir>
 Aura Bench Report
 =================
 Run:        2026-08-08T15:30:00Z
-Agent:      aura-cli (dev)
+Agent:      aura (dev)
 Tasks:      12 total, 8 passed, 4 failed
 Pass Rate:  66.7%
 Wall Time:  184.3s total, 15.4s avg
@@ -350,12 +350,12 @@ aura 测试金字塔
 - ✅ 零开销，可访问内部状态
 - ❌ 评测代码与 agent 代码耦合
 
-**选项 B**：进程调用 `cargo run --bin aura-cli`
+**选项 B**：进程调用 `cargo run --bin aura`
 - ✅ 完全隔离，与发布版本一致
 - ✅ 可以评测任意 agent（不只是 Aura）
 - ❌ 进程启动开销，JSON 输出解析
 
-**决策**：选项 B（`cargo run --bin aura-cli -- --json ...`），评测的是最终用户体验。
+**决策**：选项 B（`cargo run --bin aura -- --json ...`），评测的是最终用户体验。
 
 ### 决策 4：评测粒度
 

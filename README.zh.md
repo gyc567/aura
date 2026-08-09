@@ -6,12 +6,11 @@
 
 ## 状态
 
-**Phase 1–4 已完成。** v1 进行中。**v1.1 规划中**：会话层 + RLM 式子代理 + 工作记忆 — 详见 [`docs/architecture-roadmap.md`](docs/architecture-roadmap.md)。
+**v1 / v1.2 / Phase 6–7 已完成。** 核心循环、Session 层（`--resume`）、RLM 式子代理、scratchpad、bench 框架、compaction、插件 v2 均已落地 — 详见 [`docs/architecture-roadmap.md`](docs/architecture-roadmap.md)。
 
-- `cargo test`: 198 个测试，全部通过
+- `cargo test`: 345 个测试，全部通过
 - `cargo clippy`: 0 警告
 - `cargo fmt --check`: 通过
-- 覆盖率: ~91% (目标: 100%)
 
 ## 快速开始
 
@@ -41,7 +40,7 @@ cargo run --release -- --workspace /tmp/my-project --fake-model --json "Add a RE
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  L1 表现层  CLI (aura-cli)                                  │
+│  L1 表现层  CLI (aura)                                      │
 │         --workspace --max-turns --policy --resume --json   │
 ├─────────────────────────────────────────────────────────────┤
 │  L2 会话层  Session (v1.1)  — JSONL transcript + artifacts  │
