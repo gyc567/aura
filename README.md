@@ -1,5 +1,9 @@
 # Aura
 
+<p align="center">
+  <img src="aura-logo.png" alt="Aura logo" width="200">
+</p>
+
 A minimal, testable **coding agent** written in Rust. Give it a natural-language
 instruction and a workspace; it runs a single `while(tool_use)` loop — collecting
 context, calling tools (read/write/run/grep/…), fixing its own errors up to a
@@ -16,6 +20,7 @@ budget, and reporting what it changed.
 | Session layer (Phase 7) | ✅ done — JSONL transcript + `--resume` + compaction |
 | RLM subagents (Phase 6) | ✅ done — `subagent` / `agent_message` tools |
 | Plugin v2 | ✅ done — dynamic skill loading (`src/plugin/`) |
+| Loop engineering | 🟡 L1 report-only — `LOOP.md` + `STATE.md`, human-gated |
 
 ## Install
 
@@ -174,6 +179,27 @@ cargo test --workspace
 cargo fmt --check
 cargo clippy --all-targets -- -D warnings
 ```
+
+## Loop Engineering
+
+Aura 的开发与维护采用 [Loop Engineering](https://github.com/cobusgreyling/loop-engineering)
+方法 —— **Stop prompting. Design the loop. Get a score.**：不靠每次手动下发
+prompt，而是预先设计循环结构，让 Agent 按固定节奏自主收集信号、更新状态、
+报告，并在人工门控后才落代码。
+
+**当前级别：L1（仅报告）**。每日 triage 只更新 `STATE.md`、追加
+`loop-run-log.md`，不自动改代码；满足 L2 检查单后启用 `minimal-fix` +
+`loop-verifier` 辅助修复（见 [`LOOP.md`](LOOP.md)）。
+
+| 文件 | 用途 |
+|------|------|
+| [`LOOP.md`](LOOP.md) | 循环配置 — 模式、节奏、人机门控 |
+| [`STATE.md`](STATE.md) | 当前状态 — High Priority / Watch / Noise |
+| [`loop-budget.md`](loop-budget.md) | Token 预算与 kill switch |
+| [`loop-run-log.md`](loop-run-log.md) | 每次循环的运行日志 |
+| [`loop-constraints.md`](loop-constraints.md) | 安全约束 — 禁止编辑路径 / 禁止操作 |
+
+完整配置与 L1 → L2 → L3 演进：见 [Loop Engineering 教程](docs/loop-engineering-tutorial.md)。
 
 ## Documentation
 

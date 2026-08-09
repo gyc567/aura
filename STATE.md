@@ -51,31 +51,36 @@ Last run: 2026-08-09T17:00Z (Full audit of uncommitted changes; 3H+4M+3S finding
 - Phase 5 revisit: mock HTTP server for `complete()` coverage
 - cargo audit (network unavailable)
 
-## Work Log — 完整 / 未完整（2026-08-09 push 后）
+## Work Log — 完整 / 未完整（2026-08-09 第二轮 push 后）
 
-### ✅ 完整（已提交并推送，c4e1414 + d8c4408）
+### ✅ 完整（已提交并推送：c4e1414 → ed0bd3d 共 6 commit）
 
 | 工作 | 交付物 |
 |------|--------|
-| MVP：可安装可运行 | bin 统一 `aura`；`cargo install --path .` 验证；fake-model JSON/文本端到端 exit 0；README 补全 |
-| 配置文件支持 | `~/.config/aura/config.toml`（AURA_CONFIG/XDG 覆盖），优先级 CLI>config>env，坏配置 fail fast；10 测试 |
-| CI/CD release 自动化 | 5 平台原生矩阵 + tar.gz/zip 打包（含资源）+ tag 触发 draft release + install.sh |
-| 安装脚本 | 平台/架构检测、curl `--` 下载、AURA_SHA256 校验、PATH 提示、`--version` 自验；本地端到端实测通过 |
-| 全面审计 + 修复 | 3 高危 + 3 安全 + 1 中危 + 审计自发现 3 bug（H4-H6），全部修复并复验，报告见 docs/audit-2026-08-09.md |
-| 质量门 | 356 tests / fmt / clippy 全绿 |
+| MVP：可安装可运行 | bin 统一 `aura`；`cargo install` 验证；fake-model 端到端 exit 0；README 补全 |
+| 配置文件支持 | `~/.config/aura/config.toml`，优先级 CLI>config>env，坏配置 fail fast；10 测试 |
+| CI/CD release 自动化 | 5 平台原生矩阵 + tar.gz/zip 打包 + tag 触发 draft release + install.sh |
+| 安装脚本 | 平台检测、curl `--`、AURA_SHA256 校验、PATH 提示、自验；本地端到端实测通过 |
+| 全面审计 + 修复 | 3 高危 + 3 安全 + 1 中危 + 自发现 3 bug（H4-H6）全修复，报告 docs/audit-2026-08-09.md |
+| **M1 压缩写回 session** | ✅ 系统消息保留（core_window 首位）；写回消除重复压缩；+2 测试 |
+| **M2 scratchpad 并发** | ✅ persist 读-改-写合并（并发 key 不丢）；损坏文件备份 .json.corrupt；+2 测试 |
+| **M3 model 元数据统一** | ✅ merged_model（CLI>config）流入 Session::resume / run()；9 调用点更新 |
+| **Phase 5 覆盖率** | ✅ 76.56% → 83.88%；tests/tools_fs.rs（14）+ tools_subagent_msg.rs（6） |
+| **低危清理** | ✅ CI 最小权限 contents:read、rust-toolchain stable+MSRV 1.85 双轨、release 重复 tag 容错、HttpConfig Debug 打码、body 截断、config 0600 提示 |
+| **真实 CI 首跑** | ✅ 两轮实测：Quality + 5 平台 build 全绿（含 linux-arm64 runner、Windows PowerShell zip）；修复 toolchain pin 用法后第二轮 5/6 绿，macos-x64 排队中 |
+| 质量门 | 380 tests / fmt / clippy 全绿 |
 
 ### ⏳ 未完整（下一轮 / 需要人工）
 
 | 项 | 状态 | 备注 |
 |----|------|------|
-| M1 压缩写回 session | 建议 | 系统消息二次压缩后丢失；超阈值每轮重复压缩（agent.rs:131-147） |
-| M2 scratchpad 并发 | 建议 | 主 agent + subagent 读-改-写非原子，persist 全量覆盖丢更新 |
-| M3 resume model 元数据 | 建议 | `Session::resume(args.model)` 与 choose_model 实际值不一致 |
-| 真实 CI 首跑 | 需人工 | Linux ARM64 runner / Windows zip / publish 链路只能真 Actions 验证 |
-| 真实模型 E2E | 需 API key | 凭据管理器取；含 `aura bench run` 全量 |
-| Phase 5 剩余 9% | 待拍板 | cli.rs Clap derive / model_http mock / main.rs helpers |
-| bench submit / Docker sandbox | 未来 | v1.2 剩余项 |
-| 低危清理 | 可选 | permissions 最小化、rust-toolchain pin、HttpConfig Debug 打码、provider body 截断、config 0600、gh release 重复 tag |
+| macos-x64 CI | 进行中 | 第二/三轮 run 排队（Intel runner 繁忙），5/6 平台已验证 |
+| tag v0.1.0 + release | 待做 | CI 全绿后打 tag 触发 publish → draft release → 测 install.sh 真实下载 |
+| 真实模型 E2E | 需人工 | 环境只有 ANTHROPIC_API_KEY / EM_API_KEY（非 OpenAI-compatible）；需提供 endpoint + model |
+| subagent spawn 完整测试 | 建议 | 覆盖率 subagent 仍 ~20%（完整执行路径需 fake model 驱动子代理） |
+| main.rs binary helpers 单测 | 建议 | bin 内函数需重构到 lib 或集成测试 |
+| bench submit / Docker sandbox | 未来 | Docker daemon 本机不可用 |
+| cargo audit | 待做 | 网络受限未跑 |
 
 ---
 ---

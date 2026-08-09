@@ -579,3 +579,35 @@ Append one entry per run. Prune entries older than 30 days.
   "next": "M1 compaction write-back; M2 scratchpad concurrency; observe Actions first run"
 }
 ```
+
+```json
+{
+  "run_id": "2026-08-09T10:15:00Z",
+  "pattern": "closeout-m1m2m3 (goal-mode: fix loop items + CI + record)",
+  "duration_s": 5400,
+  "items_found": 8,
+  "actions_taken": 8,
+  "escalations": 0,
+  "tokens_estimate": 60000,
+  "outcome": "fix-proposed",
+  "fixes": [
+    "M1 compaction write-back: system message preserved (core window first), Session::compact_messages, no repeated compaction",
+    "M2 scratchpad read-merge-write persist + corrupt backup (.json.corrupt)",
+    "M3 session model metadata unified via merged_model (CLI>config) into resume/run",
+    "Phase 5 coverage 76.6% -> 83.9% (tools_fs.rs 14 tests + tools_subagent_msg.rs 6 tests)",
+    "low-priority: CI contents:read permissions, rust-toolchain stable(quality)+1.85(build MSRV), gh release --clobber, HttpConfig Debug mask, body truncate, config 0600 hint",
+    "real CI: run#1 failed (rust-toolchain@1.85 action tag + toolchain input conflict) -> fixed; run#2 5/6 green, macos-x64 queued",
+    "README + aura-logo.png (user-provided) committed"
+  ],
+  "commits": ["adbf6b6 feat: M1-M3 + Phase 5 coverage + cleanup", "10951f8 ci: fix rust-toolchain pin", "ed0bd3d ci: quality stable / build 1.85 MSRV"],
+  "tests_total": 380,
+  "tests_new": 24,
+  "clippy_warnings": 0,
+  "quality_gates": {
+    "cargo_fmt_check": "PASS",
+    "cargo_clippy": "PASS (0 warnings)",
+    "cargo_test": "PASS (380 tests, 0 failed)"
+  },
+  "next": "macos-x64 CI green -> tag v0.1.0 -> release publish -> install.sh real download; real-model E2E needs OpenAI-compatible endpoint"
+}
+```

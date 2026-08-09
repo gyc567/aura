@@ -1,5 +1,9 @@
 # Aura — 最小化 Rust 编码智能体
 
+<p align="center">
+  <img src="aura-logo.png" alt="Aura logo" width="200">
+</p>
+
 一个最小化、可测试的 Rust 编码智能体。接收任务 → 收集工作区上下文 → 运行 `while(tool_use)` 循环 → 修改文件并执行验证 → 输出变更摘要和测试报告。
 
 🌐 **Language / 语言**: [English](README.md) · [中文](README.zh.md)
@@ -132,6 +136,27 @@ cargo llvm-cov test --workspace --fail-under-lines 100 --fail-under-functions 10
 # 运行 CLI
 cargo run --release -- --help
 ```
+
+## Loop Engineering
+
+本项目的开发与维护采用 [Loop Engineering](https://github.com/cobusgreyling/loop-engineering)
+方法 —— **Stop prompting. Design the loop. Get a score.**：不靠每次手动给
+Agent 发 prompt，而是预先设计循环结构，让 Agent 按固定节奏自主运行、报告、
+修复，并在人工门控后才落代码。
+
+**当前级别：L1（仅报告）**。每日 triage 只更新 `STATE.md`、追加
+`loop-run-log.md`，不自动改代码；满足 L2 检查单后启用 `minimal-fix` +
+`loop-verifier` 辅助修复（见 [`LOOP.md`](LOOP.md)）。
+
+| 文件 | 用途 |
+|------|------|
+| [`LOOP.md`](LOOP.md) | 循环配置 — 模式、节奏、人机门控 |
+| [`STATE.md`](STATE.md) | 当前状态 — High Priority / Watch / Noise |
+| [`loop-budget.md`](loop-budget.md) | Token 预算与 kill switch |
+| [`loop-run-log.md`](loop-run-log.md) | 每次循环的运行日志 |
+| [`loop-constraints.md`](loop-constraints.md) | 安全约束 — 禁止编辑路径 / 禁止操作 |
+
+完整配置与 L1 → L2 → L3 演进：见 [Loop Engineering 教程](docs/loop-engineering-tutorial.md)。
 
 ## 设计文档
 
