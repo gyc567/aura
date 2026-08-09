@@ -41,7 +41,7 @@ use aura::tools::{
     read_file::ReadFileTool, run_command::RunCommandTool, scratchpad::ScratchpadTool,
     todo_write::TodoWriteTool, write_file::WriteFileTool,
 };
-use aura::{Budget, ErrorBudget, HttpConfig, HttpModelAdapter, InMemoryRegistry};
+use aura::{Budget, Config, ErrorBudget, HttpConfig, HttpModelAdapter, InMemoryRegistry};
 
 fn main() -> ExitCode {
     let args = CliArgs::parse();
@@ -296,7 +296,9 @@ fn run_agent_mode(args: &CliArgs, instruction: &str) -> Result<ExitCode, AgentEr
     let child_registry: Arc<ChildRegistry> = Arc::new(ChildRegistry::new());
     let tool_registry_ref: Arc<Mutex<Option<Arc<InMemoryRegistry>>>> = Arc::new(Mutex::new(None));
 
-    let model_choice = choose_model(args);
+    // 配置合并：CLI 参数 > ~/.config/aura/config.toml > 环境变量。
+    let config = Config::load()?;
+    let model_choice = choose_model(args, &config);
     let model: Arc<dyn ModelGateway + Send + Sync> = model_choice.into_dyn();
 
     let registry = build_registry(
@@ -404,14 +406,19 @@ fn build_fake_model() -> FakeModel {
     FakeModel::new(decisions)
 }
 
-fn choose_model(args: &CliArgs) -> ModelChoice {
+fn choose_model(args: &CliArgs, config: &Config) -> ModelChoice {
     if args.fake_model {
         return ModelChoice::Fake(build_fake_model());
     }
-    if let (Some(endpoint), Some(model), Some(api_key)) =
-        (&args.endpoint, &args.model, &args.api_key)
-    {
-        let cfg = HttpConfig::new(endpoint.clone(), model.clone(), api_key.clone());
+    let endpoint = Config::resolve(args.endpoint.clone(), config.endpoint.clone(), None);
+    let model = Config::resolve(args.model.clone(), config.model.clone(), None);
+    let api_key = Config::resolve(
+        args.api_key.clone(),
+        config.api_key.clone(),
+        std::env::var("AURA_API_KEY").ok(),
+    );
+    if let (Some(endpoint), Some(model), Some(api_key)) = (endpoint, model, api_key) {
+        let cfg = HttpConfig::new(endpoint, model, api_key);
         return ModelChoice::Http(HttpModelAdapter::new(cfg));
     }
     eprintln!(

@@ -7,9 +7,9 @@ use std::process::Command;
 use assert_cmd::prelude::*;
 use predicates::prelude::*;
 
-/// 查找 `aura-cli` 二进制（cargo build 后位于 `target/debug/`）。
+/// 查找 `aura` 二进制（cargo build 后位于 `target/debug/`）。
 fn aura() -> Command {
-    let mut cmd = Command::new(env!("CARGO_BIN_EXE_aura-cli"));
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_aura"));
     cmd.current_dir("/tmp"); // 任意存在目录
     cmd
 }

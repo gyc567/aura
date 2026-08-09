@@ -74,8 +74,8 @@ pub struct CliArgs {
     #[arg(long)]
     pub model: Option<String>,
 
-    /// API key（也可通过 `AURA_API_KEY` 环境变量）。
-    #[arg(long, env = "AURA_API_KEY", hide_env_values = true)]
+    /// API key（优先级：`--api-key` > 配置文件 > `AURA_API_KEY` 环境变量）。
+    #[arg(long, hide_env_values = true)]
     pub api_key: Option<String>,
 
     /// 子命令（bench 等）。
@@ -108,8 +108,8 @@ pub enum BenchCommand {
         #[arg(long, short = 'g', value_name = "GLOB")]
         tasks: Option<String>,
 
-        /// agent 命令（默认 cargo run --bin aura-cli）
-        #[arg(long, value_name = "CMD", default_value = "cargo run --bin aura-cli")]
+        /// agent 命令（默认 cargo run --bin aura）
+        #[arg(long, value_name = "CMD", default_value = "cargo run --bin aura")]
         agent: String,
 
         /// 并行任务数（默认 CPU 核数）

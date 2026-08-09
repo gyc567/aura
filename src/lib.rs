@@ -14,6 +14,10 @@ pub mod agent;
 pub mod bench;
 pub mod children;
 pub mod cli;
+pub mod compaction;
+pub mod config;
+
+pub use config::Config;
 pub mod context;
 pub mod domain;
 pub mod error;
@@ -21,6 +25,7 @@ pub mod event;
 pub mod model;
 pub mod model_http;
 pub mod output;
+pub mod plugin;
 pub mod policy;
 pub mod precheck;
 pub mod registry;
@@ -35,6 +40,7 @@ pub use agent::{
     RunReport, StopReasonPayload, run as run_agent, run_with_session as run_agent_with_session,
 };
 pub use children::ChildRegistry;
+pub use compaction::{LayeredContext, compact, should_compact};
 pub use context::{
     ContextFile, ContextPriority, TruncationResult, collect_workspace_files, is_sensitive,
     truncate_messages,

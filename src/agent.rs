@@ -13,6 +13,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Instant;
 
+use crate::compaction::{compact, should_compact};
 use crate::domain::{Decision, Message, TaskRequest};
 use crate::error::AgentError;
 use crate::event::{AgentEvent, EventSink};
@@ -66,11 +67,6 @@ pub enum StopReasonPayload {
     UserAborted,
 }
 
-/// `Agent::run` 顶层循环。
-///
-/// # Errors
-///
-/// 见 [`RunReport::stop_reason`]；CLI 据此返回非零退出码。
 /// `Agent::run` 顶层循环（Session-aware v1.2）。
 ///
 /// 接收 `&mut Session` 而非裸 `Vec<Message>`，通过 Session 统一管理消息历史、
@@ -113,6 +109,7 @@ where
     let mut error_budget = error_budget;
     let start = Instant::now();
     let stop_reason: StopReasonPayload;
+    let mut already_summarized = false;
 
     loop {
         if interrupted.load(Ordering::Relaxed) {
@@ -129,8 +126,28 @@ where
             break;
         }
 
+        // 分层上下文压缩（Phase 7 §4.4）
+        // 当上下文达到阈值时，将早期消息压缩为摘要，核心窗口保留最近消息
+        let messages_for_model = if should_compact(session.messages(), budget.max_context_bytes) {
+            let scratchpad_summary = session.scratchpad_summary();
+            let ctx = compact(
+                session.messages(),
+                scratchpad_summary.as_deref(),
+                budget.max_context_bytes,
+                DEFAULT_CORE_WINDOW_SIZE,
+                already_summarized,
+            );
+            let compacted = ctx.into_model_messages();
+            // 替换 session 中已压缩的消息为摘要形式
+            // 注意：这里只传给模型，session 本身保持完整（未来可持久化摘要）
+            already_summarized = true;
+            compacted
+        } else {
+            session.messages().to_vec()
+        };
+
         sink.emit(AgentEvent::ModelRequested);
-        let req = ModelRequest::new(task.instruction.clone(), session.messages().to_vec());
+        let req = ModelRequest::new(task.instruction.clone(), messages_for_model);
         let resp: ModelResponse = model.complete(req).await?;
 
         // 终止条件：非 Call 即结束
@@ -171,7 +188,7 @@ where
                 }
                 // 错误回填：附加错误消息和恢复提醒，继续循环
                 let reminder = SystemReminders::error_recovery(error_budget.remaining());
-                let content = format!("Tool error: {}\n\n{}", err_msg, reminder.join("\n"));
+                let content = format!("Tool error: {err_msg}\n\n{}", reminder.join("\n"));
                 session
                     .push(Message::Tool {
                         call_id: call.id.clone(),
@@ -263,3 +280,6 @@ where
     )
     .await
 }
+
+/// 默认核心窗口保留条数（与 `compaction.rs` 常量保持一致）。
+const DEFAULT_CORE_WINDOW_SIZE: usize = 10;

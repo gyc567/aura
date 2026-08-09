@@ -83,6 +83,30 @@ impl ScratchpadTool {
     pub(crate) fn with_store(store: ScratchpadStore) -> Self {
         Self { store }
     }
+
+    /// 生成 scratchpad 摘要，供 compaction 注入。
+    ///
+    /// 读取 `{workspace}/artifacts/scratchpad.json`，返回 `"key1: 200B, key2: 150B"`
+    /// 格式的摘要。若文件不存在或为空，返回 `None`。
+    #[must_use]
+    pub fn summary(workspace: &std::path::Path) -> Option<String> {
+        let path = workspace.join("artifacts").join("scratchpad.json");
+        if !path.exists() {
+            return None;
+        }
+        let contents = std::fs::read_to_string(&path).ok()?;
+        let state: std::collections::HashMap<String, ScratchpadEntry> =
+            serde_json::from_str(&contents).ok()?;
+        if state.is_empty() {
+            return None;
+        }
+        let summary = state
+            .iter()
+            .map(|(k, v)| format!("{}: {}B", k, v.value.len()))
+            .collect::<Vec<_>>()
+            .join(", ");
+        Some(summary)
+    }
 }
 
 impl Tool for ScratchpadTool {

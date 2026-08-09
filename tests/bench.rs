@@ -8,9 +8,9 @@ use std::process::Command;
 use assert_cmd::prelude::*;
 use predicates::prelude::*;
 
-/// 查找 `aura-cli` 二进制。
+/// 查找 `aura` 二进制。
 fn aura() -> Command {
-    let mut cmd = Command::new(env!("CARGO_BIN_EXE_aura-cli"));
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_aura"));
     cmd.current_dir("/tmp");
     cmd
 }
@@ -320,7 +320,7 @@ tags:
     std::fs::write(tasks_dir.join("write-file.yaml"), task_yaml).unwrap();
 
     // `true` as agent: setup already created the file, so verify passes
-    let mut cmd = Command::new(env!("CARGO_BIN_EXE_aura-cli"));
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_aura"));
     cmd.current_dir(tmp.path());
     cmd.args(["bench", "run", "--agent", "true"]);
     let output = cmd.output().unwrap();
@@ -365,7 +365,7 @@ tags:
     std::fs::write(tasks_dir.join("write-file.yaml"), task_yaml).unwrap();
 
     let out_dir = tmp.path().join("results");
-    let mut cmd = Command::new(env!("CARGO_BIN_EXE_aura-cli"));
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_aura"));
     cmd.current_dir(tmp.path());
     cmd.args([
         "bench",
@@ -393,7 +393,7 @@ tags:
 fn bench_run_no_tasks_fails() {
     let tmp = tempfile::tempdir().unwrap();
     // No bench/tasks directory — should fail
-    let mut cmd = Command::new(env!("CARGO_BIN_EXE_aura-cli"));
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_aura"));
     cmd.current_dir(tmp.path());
     cmd.args(["bench", "run"]);
     cmd.assert()
@@ -452,7 +452,7 @@ fn diff_report_no_changes() {
 
 #[test]
 fn bench_diff_compares_two_runs() {
-    let exe = env!("CARGO_BIN_EXE_aura-cli");
+    let exe = env!("CARGO_BIN_EXE_aura");
     let tmp = tempfile::tempdir().unwrap();
 
     let base_dir = tmp.path().join("base");
@@ -499,7 +499,7 @@ fn bench_diff_compares_two_runs() {
 
 #[test]
 fn bench_diff_requires_two_dirs() {
-    let exe = env!("CARGO_BIN_EXE_aura-cli");
+    let exe = env!("CARGO_BIN_EXE_aura");
     let tmp = tempfile::tempdir().unwrap();
     let missing = tmp.path().join("nonexistent");
 

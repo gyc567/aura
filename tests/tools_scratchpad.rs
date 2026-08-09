@@ -182,3 +182,84 @@ fn test_scratchpad_works_via_dyn_tool() {
     assert!(out.success);
     assert_eq!(tool.name(), "scratchpad");
 }
+
+#[test]
+fn test_scratchpad_summary_no_file() {
+    let temp = tempfile::TempDir::new().unwrap();
+    // No scratchpad.json exists yet
+    let summary = ScratchpadTool::summary(temp.path());
+    assert!(summary.is_none());
+}
+
+#[test]
+fn test_scratchpad_summary_empty_after_clear() {
+    let temp = tempfile::TempDir::new().unwrap();
+    let workspace = temp.path().to_path_buf();
+    let tool = ScratchpadTool::new(workspace.clone());
+    let ctx = ToolContext::new("/tmp".into(), "c1");
+    // Clear to get empty state
+    let args = ToolArgument::new(json!({"action": "clear"}));
+    tool.execute(ToolInput::new(args), &ctx).unwrap();
+
+    let summary = ScratchpadTool::summary(&workspace);
+    assert!(summary.is_none());
+}
+
+#[test]
+fn test_scratchpad_summary_with_entries() {
+    let temp = tempfile::TempDir::new().unwrap();
+    let workspace = temp.path().to_path_buf();
+    let tool = ScratchpadTool::new(workspace.clone());
+    let ctx = ToolContext::new("/tmp".into(), "c1");
+
+    let args = ToolArgument::new(json!({
+        "action": "set",
+        "name": "file_a",
+        "value": "a".repeat(200)
+    }));
+    tool.execute(ToolInput::new(args), &ctx).unwrap();
+
+    let args = ToolArgument::new(json!({
+        "action": "set",
+        "name": "file_b",
+        "value": "b".repeat(150)
+    }));
+    tool.execute(ToolInput::new(args), &ctx).unwrap();
+
+    let summary = ScratchpadTool::summary(&workspace);
+    assert!(summary.is_some());
+    let s = summary.unwrap();
+    assert!(s.contains("file_a: 200B"));
+    assert!(s.contains("file_b: 150B"));
+}
+
+#[test]
+fn test_scratchpad_summary_reads_from_disk() {
+    // Verify summary reads from disk, not just memory
+    let temp = tempfile::TempDir::new().unwrap();
+    let workspace = temp.path().to_path_buf();
+
+    // Create a scratchpad tool, write data, then drop it
+    {
+        let tool = ScratchpadTool::new(workspace.clone());
+        let ctx = ToolContext::new("/tmp".into(), "c1");
+        let args = ToolArgument::new(json!({
+            "action": "set",
+            "name": "persistent",
+            "value": "hello world"
+        }));
+        tool.execute(ToolInput::new(args), &ctx).unwrap();
+    }
+
+    // Create a NEW tool instance (forces re-read from disk)
+    let tool2 = ScratchpadTool::new(workspace.clone());
+    let summary = ScratchpadTool::summary(&workspace);
+    assert!(summary.is_some());
+    assert!(summary.unwrap().contains("persistent: 11B"));
+
+    // Also verify the new tool sees the data
+    let ctx = ToolContext::new("/tmp".into(), "c2");
+    let args = ToolArgument::new(json!({"action": "get", "name": "persistent"}));
+    let out = tool2.execute(ToolInput::new(args), &ctx).unwrap();
+    assert_eq!(out.content, "hello world");
+}

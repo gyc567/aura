@@ -52,7 +52,7 @@ pub struct TaskRunner {
 impl TaskRunner {
     pub fn new() -> Self {
         Self {
-            agent_cmd: "cargo run --bin aura-cli".to_string(),
+            agent_cmd: "cargo run --bin aura".to_string(),
             default_timeout_s: 300,
         }
     }
@@ -221,7 +221,7 @@ mod tests {
     #[test]
     fn default_runner() {
         let runner = TaskRunner::new();
-        assert_eq!(runner.agent_cmd, "cargo run --bin aura-cli");
+        assert_eq!(runner.agent_cmd, "cargo run --bin aura");
         assert_eq!(runner.default_timeout_s, 300);
     }
 

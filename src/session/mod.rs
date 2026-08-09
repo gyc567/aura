@@ -3,11 +3,14 @@
 pub mod transcript;
 pub use transcript::JsonlTranscript;
 
+use std::collections::HashMap;
+use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::domain::Message;
+use crate::error::AgentError;
 use crate::session::transcript::Transcript;
 
 /// Session metadata (no secrets).
@@ -97,9 +100,12 @@ impl Session {
     }
 
     /// Append a message to both the buffer and the transcript.
+    ///
+    /// Transcript 先写：append 失败时内存不推进，保持 `messages()` 与 `replay()` 一致。
     pub fn push(&mut self, msg: Message) -> Result<(), AgentError> {
-        self.messages.push(msg.clone());
-        self.transcript.append(msg)
+        self.transcript.append(msg.clone())?;
+        self.messages.push(msg);
+        Ok(())
     }
 
     /// Replay all messages from the transcript.
@@ -127,6 +133,40 @@ impl Session {
         session.messages = msgs;
         session
     }
+
+    /// Return the artifacts directory path for this session.
+    ///
+    /// This is `workspace/artifacts/`, shared by scratchpad, child transcripts, etc.
+    #[must_use]
+    pub fn artifacts_dir(&self) -> PathBuf {
+        self.meta.workspace.join("artifacts")
+    }
+
+    /// Read the scratchpad file and return a one-line summary per entry.
+    ///
+    /// Returns `None` if the scratchpad file does not exist or cannot be parsed.
+    /// The summary format is `"name: N bytes, name: N bytes, ..."`.
+    #[must_use]
+    pub fn scratchpad_summary(&self) -> Option<String> {
+        let path = self.artifacts_dir().join("scratchpad.json");
+        let contents = fs::read_to_string(&path).ok()?;
+        let entries: HashMap<String, ScratchpadEntry> = serde_json::from_str(&contents).ok()?;
+        if entries.is_empty() {
+            return Some(String::from("(scratchpad empty)"));
+        }
+        let parts: Vec<String> = entries
+            .iter()
+            .map(|(k, v)| format!("{k}: {}B", v.value.len()))
+            .collect();
+        Some(parts.join(", "))
+    }
 }
 
-use crate::error::AgentError;
+/// Scratchpad entry shape, matching tools/scratchpad.rs.
+#[derive(Debug, Clone, serde::Deserialize)]
+#[allow(dead_code)]
+struct ScratchpadEntry {
+    value: String,
+    #[allow(dead_code)]
+    updated_at: i64,
+}

@@ -1,0 +1,177 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g. v0.1.0)'
+        required: false
+        type: string
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # ── Quality gate ──────────────────────────────────────────────────────────────
+  quality:
+    name: Quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+
+      - name: Rustfmt
+        run: cargo fmt --check
+
+      - name: Clippy
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Tests
+        run: cargo test --workspace
+
+  # ── Binary builds ────────────────────────────────────────────────────────────
+  build:
+    name: Build ${{ matrix.job }}
+    runs-on: ${{ matrix.runner }}
+    needs: quality
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - job: linux-x64
+            runner: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact: aura-linux-x64.tar.gz
+
+          - job: linux-arm64
+            runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            artifact: aura-linux-arm64.tar.gz
+
+          - job: macos-x64
+            runner: macos-13
+            target: x86_64-apple-darwin
+            artifact: aura-macos-x64.tar.gz
+
+          - job: macos-arm64
+            runner: macos-latest
+            target: aarch64-apple-darwin
+            artifact: aura-macos-arm64.tar.gz
+
+          - job: windows-x64
+            runner: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact: aura-windows-x64.zip
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+
+      - name: Build
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Package (binary + resources → staging)
+        shell: bash
+        run: |
+          RELEASEDIR="target/${{ matrix.target }}/release"
+          STAGING="staging"
+          rm -rf "$STAGING" && mkdir -p "$STAGING"
+          if [[ "${{ matrix.artifact }}" == *.zip ]]; then
+            cp "${RELEASEDIR}/aura.exe" "$STAGING/aura.exe"
+          else
+            cp "${RELEASEDIR}/aura" "$STAGING/aura"
+            chmod +x "$STAGING/aura"
+          fi
+          cp README.md LICENSE config.example.toml "$STAGING/"
+
+      - name: Package zip (Windows, native PowerShell)
+        if: matrix.job == 'windows-x64'
+        shell: pwsh
+        run: |
+          Compress-Archive -Path staging/* -DestinationPath ${{ matrix.artifact }} -Force
+          Get-ChildItem ${{ matrix.artifact }} | Format-Table Name, Length
+
+      - name: Package tar.gz (Unix)
+        if: matrix.job != 'windows-x64'
+        shell: bash
+        run: |
+          # tar -a 按扩展名选格式：.tar.gz → gzip
+          tar -a -cf "${{ matrix.artifact }}" -C staging .
+          echo "Artifact: $(ls -lh ${{ matrix.artifact }})"
+          tar -tzf "${{ matrix.artifact }}"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.artifact }}
+          if-no-files-found: error
+          retention-days: 5
+
+  # ── Publish (only on tagged pushes) ─────────────────────────────────────────
+  publish:
+    name: Publish
+    runs-on: ubuntu-latest
+    needs: [quality, build]
+    if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.tag != ''
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Validate tag
+        env:
+          TAG: ${{ github.event.inputs.tag || github.ref_name }}
+        run: |
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid tag: $TAG (must match vX.Y.Z)" >&2
+            exit 1
+          fi
+
+      - name: Flatten artifact dirs
+        shell: bash
+        run: |
+          for dir in artifacts/*/; do
+            artifact=$(ls "$dir" | head -1)
+            mv "$dir/$artifact" "artifacts/$artifact"
+            rmdir "$dir"
+          done
+          ls -lh artifacts/
+
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.event.inputs.tag || github.ref_name }}
+        run: |
+          gh release create "$TAG" \
+            --title "Aura $TAG" \
+            --draft \
+            artifacts/aura-linux-x64.tar.gz \
+            artifacts/aura-linux-arm64.tar.gz \
+            artifacts/aura-macos-x64.tar.gz \
+            artifacts/aura-macos-arm64.tar.gz \
+            artifacts/aura-windows-x64.zip
+
+      - name: Upload install script
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.event.inputs.tag || github.ref_name }}
+        run: |
+          gh release upload "$TAG" release/install.sh

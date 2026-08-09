@@ -316,7 +316,7 @@ mod tests {
             make_result("t2", TaskStatus::Passed),
             make_result("t3", TaskStatus::Failed),
         ];
-        let summary = Summary::from_results("test-run", "aura-cli", results);
+        let summary = Summary::from_results("test-run", "aura", results);
         assert_eq!(summary.total, 3);
         assert_eq!(summary.passed, 2);
         assert!((summary.pass_rate - 0.667).abs() < 0.01);

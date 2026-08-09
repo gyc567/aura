@@ -194,3 +194,101 @@ fn jsonl_transcript_empty_file_replays_empty() {
     let replayed = transcript.replay();
     assert!(replayed.is_empty());
 }
+
+#[test]
+fn scratchpad_summary_injects_into_compaction() {
+    use aura::compaction::compact;
+    use aura::tools::scratchpad::ScratchpadTool;
+    use aura::{Tool, ToolArgument, ToolContext, ToolInput};
+    use serde_json::json;
+
+    let dir = tempfile::tempdir().unwrap();
+    let workspace = dir.path().to_path_buf();
+
+    // Write scratchpad entries via the tool
+    let tool = ScratchpadTool::new(workspace.clone());
+    let ctx = ToolContext::new("/tmp".into(), "c1");
+
+    let args = ToolArgument::new(json!({
+        "action": "set",
+        "name": "progress",
+        "value": "x".repeat(300)
+    }));
+    tool.execute(ToolInput::new(args), &ctx).unwrap();
+
+    // Generate summary from workspace
+    let summary = ScratchpadTool::summary(&workspace);
+    assert!(summary.is_some());
+    let s = summary.unwrap();
+    assert!(s.contains("progress: 300B"));
+
+    // Now compact with the scratchpad summary
+    let msgs: Vec<Message> = (0..15).map(|i| make_msg(&format!("step {i}"))).collect();
+    let ctx2 = compact(&msgs, Some(&s), 100, 10, false);
+
+    // Verify scratchpad summary appears in the layered context
+    assert!(ctx2.scratchpad_summary.is_some());
+    assert!(ctx2.scratchpad_summary.unwrap().contains("progress: 300B"));
+}
+
+#[test]
+fn scratchpad_summary_none_when_no_file_during_compaction() {
+    use aura::compaction::compact;
+    use aura::tools::scratchpad::ScratchpadTool;
+
+    let dir = tempfile::tempdir().unwrap();
+    let workspace = dir.path().to_path_buf();
+
+    // No scratchpad.json exists
+    let summary = ScratchpadTool::summary(&workspace);
+    assert!(summary.is_none());
+
+    // Compact with None scratchpad summary
+    let msgs: Vec<Message> = (0..5).map(|i| make_msg(&format!("msg {i}"))).collect();
+    let ctx = compact(&msgs, None, 100, 10, false);
+    assert!(ctx.scratchpad_summary.is_none());
+}
+#[test]
+fn session_scratchpad_summary_reads_file() {
+    use aura::session::Session;
+    use std::sync::Arc;
+
+    let dir = tempfile::tempdir().unwrap();
+    let session = Session::with_transcript(
+        Arc::new(aura::session::transcript::InMemoryTranscript::new()),
+        dir.path().to_path_buf(),
+        None,
+    );
+
+    // No scratchpad file yet → None
+    assert!(session.scratchpad_summary().is_none());
+
+    // Write a scratchpad.json file directly
+    let sp_path = session.artifacts_dir().join("scratchpad.json");
+    std::fs::create_dir_all(session.artifacts_dir()).unwrap();
+    std::fs::write(
+        &sp_path,
+        r#"{"notes": {"value": "hello world", "updated_at": 0}}"#,
+    )
+    .unwrap();
+
+    let summary = session.scratchpad_summary();
+    assert!(summary.is_some());
+    let s = summary.as_deref().unwrap();
+    assert!(s.contains("notes"));
+    assert!(s.contains("11B")); // "hello world" = 11 bytes
+}
+
+#[test]
+fn session_artifacts_dir_is_workspace_artifacts() {
+    use aura::session::Session;
+    use std::sync::Arc;
+
+    let dir = tempfile::tempdir().unwrap();
+    let session = Session::with_transcript(
+        Arc::new(aura::session::transcript::InMemoryTranscript::new()),
+        dir.path().to_path_buf(),
+        None,
+    );
+    assert_eq!(session.artifacts_dir(), dir.path().join("artifacts"));
+}
