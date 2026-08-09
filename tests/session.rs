@@ -292,3 +292,32 @@ fn session_artifacts_dir_is_workspace_artifacts() {
     );
     assert_eq!(session.artifacts_dir(), dir.path().join("artifacts"));
 }
+
+#[test]
+fn session_compact_messages_replaces_early_with_summary() {
+    let mut session = Session::new(PathBuf::from("/tmp"), None);
+    session
+        .push(Message::System {
+            content: "sys".into(),
+        })
+        .unwrap();
+    session.push(make_msg("u1")).unwrap();
+    session.push(make_msg("u2")).unwrap();
+
+    // 模拟 compact() 的 core_window：系统消息 + 最近 1 条
+    let core = vec![
+        Message::System {
+            content: "sys".into(),
+        },
+        make_msg("u2"),
+    ];
+    session.compact_messages("earlier work summarized", &core);
+
+    assert_eq!(session.messages().len(), 3);
+    assert!(
+        matches!(&session.messages()[0], Message::Assistant { content } if content.contains("earlier context summarized")),
+        "first message is the summary"
+    );
+    assert!(matches!(&session.messages()[1], Message::System { .. }));
+    assert_eq!(session.messages()[2], make_msg("u2"));
+}

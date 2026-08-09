@@ -22,7 +22,9 @@ use crate::model::{ModelGateway, ModelRequest, ModelResponse, ModelStream};
 use crate::tool::ToolSchema;
 
 /// OpenAI-compatible HTTP 适配器配置。
-#[derive(Debug, Clone)]
+///
+/// `Debug` 实现会打码 `api_key`，避免 debug 日志泄露密钥。
+#[derive(Clone)]
 pub struct HttpConfig {
     /// API endpoint（不含路径），如 `https://api.openai.com`。
     pub endpoint: String,
@@ -32,6 +34,17 @@ pub struct HttpConfig {
     pub model: String,
     /// API key。
     pub api_key: String,
+}
+
+impl std::fmt::Debug for HttpConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("HttpConfig")
+            .field("endpoint", &self.endpoint)
+            .field("path", &self.path)
+            .field("model", &self.model)
+            .field("api_key", &"***")
+            .finish()
+    }
 }
 
 impl HttpConfig {
@@ -271,7 +284,16 @@ impl ModelGateway for HttpModelAdapter {
             let status = resp.status();
             if !status.is_success() {
                 let body = resp.text().await.unwrap_or_default();
-                return Err(AgentError::Context(format!("HTTP {status}: {body}")));
+                // 截断 provider 回显（500 字符），避免敏感字段/超长 body 进日志
+                let preview: String = body.chars().take(500).collect();
+                let suffix = if body.chars().count() > 500 {
+                    "…"
+                } else {
+                    ""
+                };
+                return Err(AgentError::Context(format!(
+                    "HTTP {status}: {preview}{suffix}"
+                )));
             }
 
             let wire_resp: WireResponse = resp

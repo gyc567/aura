@@ -109,7 +109,6 @@ where
     let mut error_budget = error_budget;
     let start = Instant::now();
     let stop_reason: StopReasonPayload;
-    let mut already_summarized = false;
 
     loop {
         if interrupted.load(Ordering::Relaxed) {
@@ -126,8 +125,9 @@ where
             break;
         }
 
-        // 分层上下文压缩（Phase 7 §4.4）
-        // 当上下文达到阈值时，将早期消息压缩为摘要，核心窗口保留最近消息
+        // 分层上下文压缩（Phase 7 §4.4 / M1 写回）
+        // 当上下文达到阈值时，将早期消息压缩为摘要写回 session（替换早期段，
+        // 保留系统消息 + 核心窗口），既消除"每轮重复压缩"也让模型视图有界。
         let messages_for_model = if should_compact(session.messages(), budget.max_context_bytes) {
             let scratchpad_summary = session.scratchpad_summary();
             let ctx = compact(
@@ -135,13 +135,13 @@ where
                 scratchpad_summary.as_deref(),
                 budget.max_context_bytes,
                 DEFAULT_CORE_WINDOW_SIZE,
-                already_summarized,
+                false, // 写回后 session 不再膨胀，无需 already_summarized 占位
             );
-            let compacted = ctx.into_model_messages();
-            // 替换 session 中已压缩的消息为摘要形式
-            // 注意：这里只传给模型，session 本身保持完整（未来可持久化摘要）
-            already_summarized = true;
-            compacted
+            if ctx.history_summary.is_some() {
+                let summary = ctx.history_summary.clone().unwrap_or_default();
+                session.compact_messages(&summary, &ctx.core_window);
+            }
+            ctx.into_model_messages()
         } else {
             session.messages().to_vec()
         };
@@ -253,6 +253,7 @@ where
 /// # Errors
 ///
 /// 见 [`RunReport::stop_reason`]；CLI 据此返回非零退出码。
+#[allow(clippy::too_many_arguments)]
 pub async fn run<M, R, S>(
     task: TaskRequest,
     model: &M,
@@ -261,13 +262,14 @@ pub async fn run<M, R, S>(
     error_budget: ErrorBudget,
     sink: &mut S,
     interrupted: Arc<AtomicBool>,
+    model_name: Option<String>,
 ) -> Result<RunReport, AgentError>
 where
     M: ModelGateway + ?Sized,
     R: ToolRegistry + ?Sized,
     S: EventSink,
 {
-    let mut session = Session::new(task.workspace.clone(), None);
+    let mut session = Session::new(task.workspace.clone(), model_name);
     run_with_session(
         task,
         model,

@@ -108,6 +108,7 @@ async fn scenario_success_completes_after_two_turns() {
         ErrorBudget::default(),
         &mut sink,
         interrupted,
+        None,
     )
     .await
     .unwrap();
@@ -138,6 +139,7 @@ async fn scenario_ask_pause_returns_model_asked() {
         ErrorBudget::default(),
         &mut sink,
         interrupted,
+        None,
     )
     .await
     .unwrap();
@@ -168,6 +170,7 @@ async fn scenario_done_terminates_immediately() {
         ErrorBudget::default(),
         &mut sink,
         interrupted,
+        None,
     )
     .await
     .unwrap();
@@ -198,6 +201,7 @@ async fn scenario_fail_terminates_with_model_failed() {
         ErrorBudget::default(),
         &mut sink,
         interrupted,
+        None,
     )
     .await
     .unwrap();
@@ -230,6 +234,7 @@ async fn scenario_budget_exhausted() {
         ErrorBudget::default(),
         &mut sink,
         interrupted,
+        None,
     )
     .await
     .unwrap();
@@ -263,6 +268,7 @@ async fn scenario_tool_failure_terminates_loop() {
         ErrorBudget::new(1), // 首次失败即耗尽预算
         &mut sink,
         interrupted,
+        None,
     )
     .await
     .unwrap();
@@ -291,6 +297,7 @@ async fn scenario_interrupt_aborts_cleanly() {
         ErrorBudget::default(),
         &mut sink,
         interrupted,
+        None,
     )
     .await
     .unwrap();
@@ -321,6 +328,7 @@ async fn scenario_events_emitted_in_order() {
         ErrorBudget::default(),
         &mut sink,
         interrupted,
+        None,
     )
     .await
     .unwrap();
@@ -364,6 +372,7 @@ async fn scenario_todo_write_then_done() {
         ErrorBudget::default(),
         &mut sink,
         interrupted,
+        None,
     )
     .await
     .unwrap();

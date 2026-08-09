@@ -263,3 +263,53 @@ fn test_scratchpad_summary_reads_from_disk() {
     let out = tool2.execute(ToolInput::new(args), &ctx).unwrap();
     assert_eq!(out.content, "hello world");
 }
+
+/// M2：两个独立 store 实例（主 agent / subagent）并发写不同 key，
+/// persist 合并后两个 key 都应保留。
+#[test]
+fn test_scratchpad_concurrent_stores_merge_on_persist() {
+    let temp = tempfile::TempDir::new().unwrap();
+    let path = temp.path().to_path_buf();
+    let tool_a = ScratchpadTool::new(path.clone());
+    let tool_b = ScratchpadTool::new(path.clone());
+    let ctx = ToolContext::new("/tmp".into(), "c1");
+
+    let set = |tool: &ScratchpadTool, name: &str, value: &str| {
+        let args = ToolArgument::new(json!({ "action": "set", "name": name, "value": value }));
+        tool.execute(ToolInput::new(args), &ctx).unwrap();
+    };
+    set(&tool_a, "k1", "v1");
+    set(&tool_b, "k2", "v2"); // B 的内存副本不含 k1；persist 应合并保留
+
+    let tool_c = ScratchpadTool::new(path);
+    let args = ToolArgument::new(json!({ "action": "list" }));
+    let out = tool_c.execute(ToolInput::new(args), &ctx).unwrap();
+    assert!(
+        out.content.contains("k1") && out.content.contains("k2"),
+        "both keys must survive, got: {}",
+        out.content
+    );
+}
+
+/// 低危项：损坏的 scratchpad.json 应改名保留（.corrupt），不静默覆盖丢失。
+#[test]
+fn test_scratchpad_corrupt_file_is_backed_up() {
+    let temp = tempfile::TempDir::new().unwrap();
+    let dir = temp.path().join("artifacts");
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("scratchpad.json");
+    std::fs::write(&path, "not [ valid json").unwrap();
+
+    let tool = ScratchpadTool::new(temp.path().to_path_buf());
+    let ctx = ToolContext::new("/tmp".into(), "c1");
+    let args = ToolArgument::new(json!({ "action": "set", "name": "ok", "value": "1" }));
+    tool.execute(ToolInput::new(args), &ctx).unwrap();
+
+    assert!(
+        path.with_extension("json.corrupt").exists(),
+        "corrupt file backed up"
+    );
+    let args = ToolArgument::new(json!({ "action": "get", "name": "ok" }));
+    let out = tool.execute(ToolInput::new(args), &ctx).unwrap();
+    assert_eq!(out.content, "1");
+}

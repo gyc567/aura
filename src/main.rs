@@ -298,6 +298,7 @@ fn run_agent_mode(args: &CliArgs, instruction: &str) -> Result<ExitCode, AgentEr
 
     // 配置合并：CLI 参数 > ~/.config/aura/config.toml > 环境变量。
     let config = Config::load()?;
+    let merged_model = Config::resolve(args.model.clone(), config.model.clone(), None);
     let model_choice = choose_model(args, &config);
     let model: Arc<dyn ModelGateway + Send + Sync> = model_choice.into_dyn();
 
@@ -319,7 +320,7 @@ fn run_agent_mode(args: &CliArgs, instruction: &str) -> Result<ExitCode, AgentEr
 
     let report = if let Some(resume_path) = &args.resume {
         let mut session =
-            Session::resume(resume_path.clone(), workspace.clone(), args.model.clone());
+            Session::resume(resume_path.clone(), workspace.clone(), merged_model.clone());
         futures_block_on(async {
             spawn_sigint_handler(interrupted.clone());
             run_agent_with_session(
@@ -345,6 +346,7 @@ fn run_agent_mode(args: &CliArgs, instruction: &str) -> Result<ExitCode, AgentEr
                 ErrorBudget::default(),
                 &mut sink,
                 interrupted.clone(),
+                merged_model.clone(),
             )
             .await
         })?

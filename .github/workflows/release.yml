@@ -20,11 +20,13 @@ jobs:
   quality:
     name: Quality
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@master
+        uses: dtolnay/rust-toolchain@1.85
         with:
           toolchain: stable
 
@@ -42,6 +44,8 @@ jobs:
     name: Build ${{ matrix.job }}
     runs-on: ${{ matrix.runner }}
     needs: quality
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -75,9 +79,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: stable
+        uses: dtolnay/rust-toolchain@1.85
 
       - name: Build
         run: cargo build --release --target ${{ matrix.target }}
@@ -160,14 +162,24 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ github.event.inputs.tag || github.ref_name }}
         run: |
-          gh release create "$TAG" \
-            --title "Aura $TAG" \
-            --draft \
-            artifacts/aura-linux-x64.tar.gz \
-            artifacts/aura-linux-arm64.tar.gz \
-            artifacts/aura-macos-x64.tar.gz \
-            artifacts/aura-macos-arm64.tar.gz \
-            artifacts/aura-windows-x64.zip
+          # 已存在（重复发布）→ 直接复用并补传资产；不存在 → 创建 draft
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" \
+              --title "Aura $TAG" \
+              --draft \
+              artifacts/aura-linux-x64.tar.gz \
+              artifacts/aura-linux-arm64.tar.gz \
+              artifacts/aura-macos-x64.tar.gz \
+              artifacts/aura-macos-arm64.tar.gz \
+              artifacts/aura-windows-x64.zip
+          else
+            gh release upload "$TAG" \
+              artifacts/aura-linux-x64.tar.gz \
+              artifacts/aura-linux-arm64.tar.gz \
+              artifacts/aura-macos-x64.tar.gz \
+              artifacts/aura-macos-arm64.tar.gz \
+              artifacts/aura-windows-x64.zip --clobber
+          fi
 
       - name: Upload install script
         env:

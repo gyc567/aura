@@ -108,6 +108,18 @@ impl Session {
         Ok(())
     }
 
+    /// 压缩写回：将消息历史替换为「摘要消息 + 核心窗口」。
+    ///
+    /// transcript 保持 append-only（完整历史审计），内存变为压缩后视图。
+    /// 调用方负责保证 `core_window` 来自 `compact()`（含系统消息）。
+    pub fn compact_messages(&mut self, summary: &str, core_window: &[Message]) {
+        let mut new_messages = vec![Message::Assistant {
+            content: format!("[earlier context summarized]\n{summary}"),
+        }];
+        new_messages.extend_from_slice(core_window);
+        self.messages = new_messages;
+    }
+
     /// Replay all messages from the transcript.
     #[must_use]
     pub fn replay(&self) -> Vec<Message> {

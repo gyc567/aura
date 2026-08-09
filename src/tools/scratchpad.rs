@@ -35,7 +35,16 @@ impl ScratchpadStore {
     pub(crate) fn load(path: PathBuf) -> Self {
         let state = if path.exists() {
             match fs::read_to_string(&path) {
-                Ok(contents) => serde_json::from_str(&contents).unwrap_or_else(|_| HashMap::new()),
+                Ok(contents) => {
+                    if let Ok(map) = serde_json::from_str(&contents) {
+                        map
+                    } else {
+                        // 损坏文件改名保留（避免下次 persist 全量覆盖丢失），再重建空状态
+                        let backup = path.with_extension("json.corrupt");
+                        let _ = fs::rename(&path, &backup);
+                        HashMap::new()
+                    }
+                }
                 Err(_) => HashMap::new(),
             }
         } else {
@@ -48,9 +57,19 @@ impl ScratchpadStore {
     }
 
     /// 持久化当前内存状态到文件。
+    ///
+    /// 读-改-写合并：写前重读磁盘，把其他实例（如 subagent）新写入的 key 并入
+    /// （磁盘独有 → 保留；同 key → 内存优先），避免并发全量覆盖丢更新（M2）。
     fn persist(&self) -> Result<(), AgentError> {
-        let state = self.state.lock().unwrap();
-        let json = serde_json::to_string_pretty(&*state)
+        let mut merged = self.state.lock().unwrap().clone();
+        if let Ok(contents) = fs::read_to_string(&self.path) {
+            if let Ok(disk) = serde_json::from_str::<HashMap<String, ScratchpadEntry>>(&contents) {
+                for (k, v) in disk {
+                    merged.entry(k).or_insert(v);
+                }
+            }
+        }
+        let json = serde_json::to_string_pretty(&merged)
             .map_err(|e| AgentError::Context(e.to_string()))?;
         if let Some(parent) = self.path.parent() {
             fs::create_dir_all(parent)

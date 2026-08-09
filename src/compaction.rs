@@ -161,13 +161,25 @@ pub fn compact(
     already_summarized: bool,
 ) -> LayeredContext {
     // 计算核心窗口：从末尾取 core_window_size 条
-    let (core_window, early_messages): (Vec<Message>, Vec<Message>) =
+    let (mut core_window, mut early_messages): (Vec<Message>, Vec<Message>) =
         if messages.len() > core_window_size {
             let split = messages.len() - core_window_size;
             (messages[split..].to_vec(), messages[..split].to_vec())
         } else {
             (messages.to_vec(), Vec::new())
         };
+
+    // 系统消息不参与压缩：从 early 移到 core 头部（系统消息原在对话最前）。
+    // 否则二次压缩后系统提醒会随摘要占位符永久消失（M1）。
+    let system_msgs: Vec<Message> = early_messages
+        .iter()
+        .filter(|m| matches!(m, Message::System { .. }))
+        .cloned()
+        .collect();
+    if !system_msgs.is_empty() {
+        early_messages.retain(|m| !matches!(m, Message::System { .. }));
+        core_window = [system_msgs, core_window].concat();
+    }
 
     // 生成历史摘要（仅在有早期消息时）
     let history_summary = if early_messages.is_empty() {
@@ -335,6 +347,34 @@ mod tests {
         assert!(summary.contains("run_command"), "summary: {summary}");
         // String 本身保证 UTF-8；再确认截断后的预览不超原长度且以 … 结尾
         assert!(summary.contains('…'));
+    }
+
+    #[test]
+    fn test_system_message_stays_in_core_window() {
+        // 系统消息 + 12 条 assistant，window=10 → 系统消息本应落入 early，
+        // 修复（M1）后必须被移到 core_window 且保持在最前。
+        let system = Message::System {
+            content: "system baseline".into(),
+        };
+        let mut msgs = vec![system.clone()];
+        msgs.extend((0..12).map(|i| assistant(&format!("step {i}"))));
+        let ctx = compact(&msgs, None, 100, 10, false);
+        assert!(
+            ctx.history_summary.is_some(),
+            "assistant messages should be summarized"
+        );
+        assert!(
+            matches!(ctx.core_window.first(), Some(Message::System { .. })),
+            "system message must be first in core window"
+        );
+        assert_eq!(
+            ctx.core_window
+                .iter()
+                .filter(|m| matches!(m, Message::System { .. }))
+                .count(),
+            1,
+            "exactly one system message preserved"
+        );
     }
 
     #[test]
