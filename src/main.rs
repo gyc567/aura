@@ -308,6 +308,7 @@ fn run_agent_mode(args: &CliArgs, instruction: &str) -> Result<ExitCode, AgentEr
                 &mut session,
                 &mut sink,
                 interrupted.clone(),
+                None,
             )
             .await
         })?

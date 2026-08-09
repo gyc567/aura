@@ -172,6 +172,8 @@ impl Tool for SubagentTool {
                 child_workspace_str.clone(),
                 None,
             );
+            let inbox =
+                crate::children::ChildInbox::new(registry.clone(), child_id_for_result.clone());
             let result = crate::agent::run_with_session(
                 child_task,
                 &*model,
@@ -181,6 +183,7 @@ impl Tool for SubagentTool {
                 &mut session,
                 &mut sink,
                 interrupted,
+                Some(inbox),
             )
             .await;
 

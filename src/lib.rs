@@ -40,7 +40,7 @@ pub mod tools;
 pub use agent::{
     RunReport, StopReasonPayload, run as run_agent, run_with_session as run_agent_with_session,
 };
-pub use children::ChildRegistry;
+pub use children::{ChildInbox, ChildRegistry};
 pub use compaction::{LayeredContext, compact, should_compact};
 pub use context::{
     ContextFile, ContextPriority, TruncationResult, collect_workspace_files, is_sensitive,

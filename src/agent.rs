@@ -85,6 +85,7 @@ pub async fn run_with_session<M, R, S>(
     session: &mut Session,
     sink: &mut S,
     interrupted: Arc<AtomicBool>,
+    inbox: Option<crate::children::ChildInbox>,
 ) -> Result<RunReport, AgentError>
 where
     M: ModelGateway + ?Sized,
@@ -136,6 +137,18 @@ where
         if budget.check_wall_time(start.elapsed()).is_err() {
             stop_reason = StopReasonPayload::BudgetExhausted { used: used_turns };
             break;
+        }
+
+        // 子代理收件箱：parent 定向消息注入为 User 消息（架构 §4.2）。
+        // 每轮拉取一次，注入后清空；子代理在下一轮请求中看到 parent 消息。
+        if let Some(inbox) = &inbox {
+            for msg in inbox.drain() {
+                session
+                    .push(Message::User {
+                        content: format!("[message from {}]: {}", msg.from, msg.content),
+                    })
+                    .map_err(|e| AgentError::Context(format!("push inbox msg: {e}")))?;
+            }
         }
 
         // 分层上下文压缩（Phase 7 §4.4 / M1 写回）
@@ -301,6 +314,7 @@ where
         &mut session,
         sink,
         interrupted,
+        None,
     )
     .await
 }

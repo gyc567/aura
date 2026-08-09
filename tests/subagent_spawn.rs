@@ -403,3 +403,96 @@ fn subagent_spawn_rejects_empty_task_and_zero_depth() {
         "depth-0 branch"
     );
 }
+
+/// 假模型：记录收到的所有 User 消息（inbox 注入测试用）。
+struct CaptureModel {
+    seen: std::sync::Mutex<Vec<String>>,
+}
+
+impl ModelGateway for CaptureModel {
+    fn complete(
+        &self,
+        req: ModelRequest,
+    ) -> std::pin::Pin<
+        Box<dyn std::future::Future<Output = Result<ModelResponse, AgentError>> + Send + '_>,
+    > {
+        let users: Vec<String> = req
+            .messages
+            .iter()
+            .filter_map(|m| match m {
+                aura::Message::User { content } => Some(content.clone()),
+                _ => None,
+            })
+            .collect();
+        self.seen.lock().unwrap().extend(users);
+        Box::pin(async move {
+            Ok(ModelResponse {
+                raw: "done".into(),
+                decision: Decision::Done {
+                    summary: "ok".into(),
+                },
+            })
+        })
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn child_inbox_messages_injected_into_session() {
+    use std::sync::Mutex as StdMutex;
+
+    let ws = tempfile::tempdir().expect("tempdir");
+    let registry = Arc::new(ChildRegistry::new());
+    let cid = registry.register(
+        Some("worker".into()),
+        ws.path().join("sess"),
+        aura::ChildStatus::Running,
+    );
+    // 预投递一条 parent 消息
+    assert!(registry.send_message(
+        &cid,
+        aura::AgentMessage {
+            to: cid.clone(),
+            from: "parent".into(),
+            content: "keep going".into(),
+        }
+    ));
+    let inbox = aura::ChildInbox::new(registry.clone(), cid.clone());
+
+    let model = CaptureModel {
+        seen: StdMutex::new(Vec::new()),
+    };
+
+    let task = aura::TaskRequest::new("child task", ws.path().to_path_buf(), 5).unwrap();
+    let mut session = aura::Session::new(ws.path().to_path_buf(), None);
+    let mut sink = VecEventSink::new();
+    let registry_empty = aura::InMemoryRegistry::empty();
+    let report = aura::run_agent_with_session(
+        task,
+        &model,
+        &registry_empty,
+        aura::Budget::new(5, 100_000).unwrap(),
+        aura::ErrorBudget::default(),
+        &mut session,
+        &mut sink,
+        Arc::new(AtomicBool::new(false)),
+        Some(inbox),
+    )
+    .await
+    .expect("child run");
+
+    assert!(matches!(
+        report.stop_reason,
+        aura::StopReasonPayload::Completed { .. }
+    ));
+    let seen = model.seen.lock().unwrap();
+    assert!(
+        seen.iter()
+            .any(|c| c.contains("[message from parent]") && c.contains("keep going")),
+        "injected parent message missing from model request: {seen:?}"
+    );
+    // 邮箱已清空
+    assert!(
+        registry.get(&cid).unwrap().inbox.is_empty(),
+        "inbox should be drained after first turn"
+    );
+}

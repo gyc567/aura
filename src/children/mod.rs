@@ -9,7 +9,7 @@
 
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use crate::domain::{AgentMessage, ChildHandle, ChildId, ChildStatus};
 
@@ -87,6 +87,16 @@ impl ChildRegistry {
         }
     }
 
+    /// 取出子代理邮箱中的全部消息并清空（子代理每轮拉取一次）。
+    #[must_use]
+    pub fn drain_inbox(&self, child_id: &ChildId) -> Vec<AgentMessage> {
+        let mut guard = self.children.lock().unwrap();
+        guard
+            .get_mut(child_id)
+            .map(|h| std::mem::take(&mut h.inbox))
+            .unwrap_or_default()
+    }
+
     /// 移除子代理。
     pub fn delete(&self, child_id: &ChildId) -> bool {
         self.children.lock().unwrap().remove(child_id).is_some()
@@ -125,6 +135,31 @@ impl ChildRegistry {
 impl Default for ChildRegistry {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+/// 子代理收件箱句柄：`run_with_session` 每轮模型请求前拉取待处理消息。
+///
+/// parent 通过 `agent_message` 投递的消息在此被取出并注入子会话
+/// （架构 §4.2：`delivered to the child's inbox and will be processed
+/// in its next turn`）。
+#[derive(Clone)]
+pub struct ChildInbox {
+    registry: Arc<ChildRegistry>,
+    child_id: ChildId,
+}
+
+impl ChildInbox {
+    /// 创建收件箱句柄。
+    #[must_use]
+    pub fn new(registry: Arc<ChildRegistry>, child_id: ChildId) -> Self {
+        Self { registry, child_id }
+    }
+
+    /// 取出待处理消息并清空邮箱（空 Vec 表示无新消息）。
+    #[must_use]
+    pub fn drain(&self) -> Vec<AgentMessage> {
+        self.registry.drain_inbox(&self.child_id)
     }
 }
 
@@ -213,5 +248,62 @@ mod tests {
             content: "hello".into(),
         };
         assert!(!reg.send_message(&fake_id, msg));
+    }
+
+    #[test]
+    fn registry_drain_inbox_returns_and_clears() {
+        let reg = ChildRegistry::new();
+        let id = reg.register(
+            Some("child".into()),
+            PathBuf::from("/tmp/c"),
+            ChildStatus::Running,
+        );
+        reg.send_message(
+            &id,
+            AgentMessage {
+                to: id.clone(),
+                from: "parent".into(),
+                content: "m1".into(),
+            },
+        );
+        reg.send_message(
+            &id,
+            AgentMessage {
+                to: id.clone(),
+                from: "parent".into(),
+                content: "m2".into(),
+            },
+        );
+        let drained = reg.drain_inbox(&id);
+        assert_eq!(drained.len(), 2);
+        assert_eq!(drained[0].content, "m1");
+        assert!(reg.get(&id).unwrap().inbox.is_empty(), "inbox cleared");
+        // 再次 drain 返回空
+        assert!(reg.drain_inbox(&id).is_empty());
+        // 未知 child 返回空
+        assert!(reg.drain_inbox(&ChildId("nope".into())).is_empty());
+    }
+
+    #[test]
+    fn child_inbox_drain_delegates_to_registry() {
+        let reg = Arc::new(ChildRegistry::new());
+        let id = reg.register(
+            Some("child".into()),
+            PathBuf::from("/tmp/c"),
+            ChildStatus::Running,
+        );
+        let inbox = ChildInbox::new(reg.clone(), id.clone());
+        reg.send_message(
+            &id,
+            AgentMessage {
+                to: id.clone(),
+                from: "parent".into(),
+                content: "ping".into(),
+            },
+        );
+        let msgs = inbox.drain();
+        assert_eq!(msgs.len(), 1);
+        assert_eq!(msgs[0].content, "ping");
+        assert!(inbox.drain().is_empty());
     }
 }
