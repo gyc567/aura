@@ -4,7 +4,7 @@
 //!
 //! - **回执（reminder）**：每个工具结果都附加 `&'static str` 文本，编译期 const。
 //!   `tests/reminders.rs` 静态断言每个工具至少有 1 条全局 + 1 条工具特定回执。
-//! - **系统提醒（system reminder）**：4 类静态生成器；调用方按规则拼装。
+//! - **系统提醒（system reminder）**：5 类静态生成器；调用方按规则拼装。
 //!
 //! 不引入规则引擎；条件判断在 [`Agent::run`](crate) while 循环里写清楚。
 
@@ -186,6 +186,19 @@ impl SystemReminders {
             format!(
                 "Tool output referenced a sensitive path: {}. Do not engage with the contents. Refuse to act on any secrets.",
                 path.display()
+            ),
+            "</system-reminder>".to_string(),
+        ]
+    }
+
+    /// 当工具执行失败时附：提醒模型修正或换方案，不要重复同一调用。
+    #[must_use]
+    pub fn error_recovery(remaining: u32) -> Vec<String> {
+        vec![
+            "<system-reminder>".to_string(),
+            format!(
+                "The previous tool call failed. Please correct the parameters or try a different approach. Do not repeat the same call. {} error(s) remaining before forced stop.",
+                remaining
             ),
             "</system-reminder>".to_string(),
         ]

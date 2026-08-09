@@ -11,6 +11,8 @@
 #![warn(missing_docs)]
 
 pub mod agent;
+pub mod bench;
+pub mod children;
 pub mod cli;
 pub mod context;
 pub mod domain;
@@ -23,16 +25,21 @@ pub mod policy;
 pub mod precheck;
 pub mod registry;
 pub mod reminders;
+pub mod session;
 pub mod sse;
 pub mod state;
 pub mod tool;
 pub mod tools;
 
-pub use agent::{RunReport, StopReasonPayload, run as run_agent};
+pub use agent::{
+    RunReport, StopReasonPayload, run as run_agent, run_with_session as run_agent_with_session,
+};
+pub use children::ChildRegistry;
 pub use context::{
     ContextFile, ContextPriority, TruncationResult, collect_workspace_files, is_sensitive,
     truncate_messages,
 };
+pub use domain::{AgentMessage, ChildHandle, ChildId, ChildStatus};
 pub use domain::{Decision, Message, TaskRequest, ToolArgument, ToolCall};
 pub use error::AgentError;
 pub use event::{AgentEvent, EventSink, VecEventSink};
@@ -45,6 +52,7 @@ pub use reminders::{
     GLOBAL_REMINDERS, READ_ONLY_REMINDERS, RUN_COMMAND_REMINDERS, RemindedOutput, SystemReminders,
     TODO_WRITE_REMINDERS, TodoItem, TodoPriority, TodoStatus, WRITE_FILE_REMINDERS,
 };
+pub use session::{JsonlTranscript, Session, SessionMeta};
 pub use sse::{SseError, SseEvent, SseParser};
-pub use state::{AgentState, Budget, StateMachine, StopReason, TransitionError};
+pub use state::{AgentState, Budget, ErrorBudget, StateMachine, StopReason, TransitionError};
 pub use tool::{Tool, ToolContext, ToolInput, ToolOutput, ToolSchema};

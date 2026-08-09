@@ -1,0 +1,45 @@
+id: write-grep-tool
+name: "Write a grep tool"
+description: |
+  Implement a simple text search tool that searches for a pattern in files.
+difficulty: medium
+category: feature
+skills: ["rust"]
+setup:
+  - action: mkdir
+    path: src
+  - action: mkdir
+    path: tests
+  - action: write
+    path: Cargo.toml
+    content: |
+      [package]
+      name = "grep-tool"
+      version = "0.1.0"
+      edition = "2021"
+
+      [lib]
+      name = "grep_tool"
+      path = "src/lib.rs"
+  - action: write
+    path: src/lib.rs
+    content: |
+      /// Searches for lines containing `pattern` in `content`.
+      ///
+      /// Returns a vector of matching lines (without trailing newlines).
+      pub fn grep(content: &str, pattern: &str) -> Vec<String> {
+          todo!("implement this")
+      }
+instruction: |
+  Implement the `grep` function in src/lib.rs. It should search for lines
+  containing `pattern` (case-sensitive substring match) in `content` and
+  return matching lines without trailing newlines.
+  Write unit tests in tests/unit_test.rs covering normal matches,
+  no matches, empty content, and empty pattern.
+verify:
+  type: cargo_test
+  timeout_seconds: 120
+tags:
+  - rust
+  - feature
+  - medium

@@ -1,0 +1,77 @@
+id: implement-scratchpad-tests
+name: "Implement tests for scratchpad module"
+description: |
+  Given a scratchpad module with set/get/append/list/clear, write comprehensive tests.
+difficulty: medium
+category: testing
+skills: ["rust", "testing"]
+setup:
+  - action: mkdir
+    path: src
+  - action: mkdir
+    path: tests
+  - action: write
+    path: Cargo.toml
+    content: |
+      [package]
+      name = "scratchpad"
+      version = "0.1.0"
+      edition = "2021"
+
+      [lib]
+      name = "scratchpad"
+      path = "src/lib.rs"
+  - action: write
+    path: src/lib.rs
+    content: |
+      use std::collections::HashMap;
+
+      pub struct Scratchpad {
+          data: HashMap<String, String>,
+      }
+
+      impl Scratchpad {
+          pub fn new() -> Self {
+              Self { data: HashMap::new() }
+          }
+
+          pub fn set(&mut self, key: &str, value: &str) {
+              self.data.insert(key.to_string(), value.to_string());
+          }
+
+          pub fn get(&self, key: &str) -> Option<&str> {
+              self.data.get(key).map(|s| s.as_str())
+          }
+
+          pub fn append(&mut self, key: &str, value: &str) {
+              match self.data.get_mut(key) {
+                  Some(existing) => existing.push_str(value),
+                  None => { self.data.insert(key.to_string(), value.to_string()); }
+              }
+          }
+
+          pub fn list(&self) -> Vec<&str> {
+              self.data.keys().map(|k| k.as_str()).collect()
+          }
+
+          pub fn clear(&mut self) {
+              self.data.clear();
+          }
+      }
+
+      impl Default for Scratchpad {
+          fn default() -> Self {
+              Self::new()
+          }
+      }
+instruction: |
+  Write comprehensive unit tests for the Scratchpad struct in tests/unit_test.rs.
+  Cover: set/get, append (existing and new keys), list, clear, get on
+  nonexistent key returns None.
+verify:
+  type: cargo_test
+  timeout_seconds: 60
+tags:
+  - rust
+  - testing
+  - medium

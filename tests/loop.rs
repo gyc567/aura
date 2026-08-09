@@ -15,8 +15,8 @@ use aura::event::{AgentEvent, VecEventSink};
 use aura::model::{ModelGateway, ModelRequest, ModelResponse};
 use aura::tools::todo_write::TodoWriteTool;
 use aura::{
-    Budget, InMemoryRegistry, StopReasonPayload, Tool, ToolContext, ToolInput, ToolOutput,
-    run_agent,
+    Budget, ErrorBudget, InMemoryRegistry, StopReasonPayload, Tool, ToolContext, ToolInput,
+    ToolOutput, run_agent,
 };
 
 /// `FakeModel`：按 FIFO 队列返回预置决策。
@@ -105,6 +105,7 @@ async fn scenario_success_completes_after_two_turns() {
         &model,
         &registry,
         budget,
+        ErrorBudget::default(),
         &mut sink,
         interrupted,
     )
@@ -134,6 +135,7 @@ async fn scenario_ask_pause_returns_model_asked() {
         &model,
         &registry,
         budget,
+        ErrorBudget::default(),
         &mut sink,
         interrupted,
     )
@@ -163,6 +165,7 @@ async fn scenario_done_terminates_immediately() {
         &model,
         &registry,
         budget,
+        ErrorBudget::default(),
         &mut sink,
         interrupted,
     )
@@ -192,6 +195,7 @@ async fn scenario_fail_terminates_with_model_failed() {
         &model,
         &registry,
         budget,
+        ErrorBudget::default(),
         &mut sink,
         interrupted,
     )
@@ -223,6 +227,7 @@ async fn scenario_budget_exhausted() {
         &model,
         &registry,
         budget,
+        ErrorBudget::default(),
         &mut sink,
         interrupted,
     )
@@ -236,7 +241,7 @@ async fn scenario_budget_exhausted() {
     ));
 }
 
-// 场景 6：工具失败
+// 场景 6：错误预算耗尽（ErrorBudget=1 时首次失败即停）
 #[tokio::test(flavor = "current_thread")]
 async fn scenario_tool_failure_terminates_loop() {
     let model = FakeModel::new(vec![
@@ -255,6 +260,7 @@ async fn scenario_tool_failure_terminates_loop() {
         &model,
         &registry,
         budget,
+        ErrorBudget::new(1), // 首次失败即耗尽预算
         &mut sink,
         interrupted,
     )
@@ -282,6 +288,7 @@ async fn scenario_interrupt_aborts_cleanly() {
         &model,
         &registry,
         budget,
+        ErrorBudget::default(),
         &mut sink,
         interrupted,
     )
@@ -311,6 +318,7 @@ async fn scenario_events_emitted_in_order() {
         &model,
         &registry,
         budget,
+        ErrorBudget::default(),
         &mut sink,
         interrupted,
     )
@@ -353,6 +361,7 @@ async fn scenario_todo_write_then_done() {
         &model,
         &registry,
         budget,
+        ErrorBudget::default(),
         &mut sink,
         interrupted,
     )

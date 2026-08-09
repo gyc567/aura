@@ -217,9 +217,9 @@ src/
 |---|---|---|
 | **v1 收尾** | 覆盖率 91% → 100%(cli/main/model_http) | 不变 |
 | **v1.1 = Phase 6 修订版** | ① Session 消息管理子集(消息历史 + JsonlTranscript,§4.3)② 错误回填 + ErrorBudget(§4.1)③ RLM 式子代理 + multi-thread runtime(§4.2)④ scratchpad 工作记忆(§4.6)⑤ Budget/gate 基础(§4.5) | Phase 6 原只有子代理 + fast model 预检;Session 为公共地基,先行落地 |
+| **v1.2** | **Bench Framework**（`docs/bench-framework.md`）：`aura bench run/report/init` + 8 种子任务 + 隔离 workspace + 量化指标 | 新增：评测体系是证据驱动改进的前提 |
 | **v2 = Phase 7 修订版** | ① Session 完整生命周期 + `--resume`(§4.3)② 分层 compaction(§4.4)③ 插件系统(现 spec 照旧,复用 Session 做安装状态持久化) | 原 Phase 7 只有插件;Session 先行 |
 | **v3+(远期)** | goals/heartbeat/调度(若出现长期任务场景);`/refine`-lite(§4.8);TUI(若需要) | 依赖 v2 Session 层 |
-
 依赖顺序:`Session` 是子代理、compaction、refine 的公共地基,**即使从 v1.1 开工,也先落 Session 的消息管理子集,再叠其余**。
 
 ---

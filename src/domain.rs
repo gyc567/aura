@@ -18,6 +18,8 @@ pub struct TaskRequest {
     pub workspace: PathBuf,
     /// 最大循环轮次，必须 > 0。
     pub max_turns: u32,
+    /// 最大子代理递归深度（v1.2 新增）。0 = 不允许再嵌套 subagent。
+    pub max_depth: u32,
 }
 
 impl TaskRequest {
@@ -32,10 +34,25 @@ impl TaskRequest {
         workspace: PathBuf,
         max_turns: u32,
     ) -> Result<Self, AgentError> {
+        Self::new_with_depth(instruction, workspace, max_turns, 2)
+    }
+
+    /// 构造任务并指定递归深度。
+    ///
+    /// # Errors
+    ///
+    /// 同 [`Self::new`]。
+    pub fn new_with_depth(
+        instruction: impl Into<String>,
+        workspace: PathBuf,
+        max_turns: u32,
+        max_depth: u32,
+    ) -> Result<Self, AgentError> {
         let request = Self {
             instruction: instruction.into(),
             workspace,
             max_turns,
+            max_depth,
         };
         request.validate()?;
         Ok(request)
@@ -55,6 +72,11 @@ impl TaskRequest {
         if self.max_turns == 0 {
             return Err(AgentError::InvalidRequest(
                 "max_turns must be greater than zero".into(),
+            ));
+        }
+        if self.max_depth == 0 {
+            return Err(AgentError::InvalidRequest(
+                "max_depth must be greater than zero".into(),
             ));
         }
         if !self.workspace.is_absolute() {
@@ -251,4 +273,64 @@ impl From<serde_json::Value> for ToolArgument {
     fn from(value: serde_json::Value) -> Self {
         Self(value)
     }
+}
+
+/// 子代理唯一标识（v1.2 新增：RLM 式子代理）。
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct ChildId(pub String);
+
+impl ChildId {
+    /// 生成一个唯一的子代理 ID。
+    #[must_use]
+    pub fn generate() -> Self {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default();
+        Self(format!("child_{}", now.as_nanos()))
+    }
+}
+
+impl std::fmt::Display for ChildId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+/// 子代理运行状态。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ChildStatus {
+    /// 子代理正在后台运行。
+    Running,
+    /// 子代理已完成。
+    Completed,
+    /// 子代理失败。
+    Failed,
+}
+
+/// 子代理句柄：父作用域中 `ChildRegistry` 的一项。
+#[derive(Debug)]
+pub struct ChildHandle {
+    /// 子代理 ID。
+    pub child_id: ChildId,
+    /// 子代理名称（可选）。
+    pub name: Option<String>,
+    /// 子代理独立会话目录。
+    pub session_dir: PathBuf,
+    /// 当前状态。
+    pub status: ChildStatus,
+    /// 完成结果摘要（完成后可用）。
+    pub result: Option<String>,
+    /// 发送给子代理的待处理消息。
+    pub inbox: Vec<AgentMessage>,
+}
+
+/// 父→子代理的定向消息（v1.2 新增）。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgentMessage {
+    /// 接收方子代理 ID。
+    pub to: ChildId,
+    /// 发送方标识（父代理或子代理 ID）。
+    pub from: String,
+    /// 消息内容。
+    pub content: String,
 }

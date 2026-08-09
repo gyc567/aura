@@ -1,0 +1,38 @@
+id: readme-from-spec
+name: "Write README from spec"
+description: |
+  Given a project specification document, write a comprehensive README.md.
+difficulty: medium
+category: docs
+skills: ["rust", "documentation"]
+setup:
+  - action: mkdir
+    path: src
+  - action: write
+    path: spec.md
+    content: |
+      # Project Spec: Number Utilities
+
+      A Rust library providing basic number utility functions.
+
+      ## Functions
+
+      - `add(a: i32, b: i32) -> i32`: Returns the sum of two integers.
+      - `multiply(a: i32, b: i32) -> i32`: Returns the product of two integers.
+      - `is_even(n: i32) -> bool`: Returns true if n is even.
+
+      ## Setup
+
+      Create a `src/lib.rs` with the three functions above.
+      Create a `README.md` documenting the API, usage, and examples.
+instruction: |
+  Based on spec.md, implement src/lib.rs with the three functions and
+  write a README.md documenting the library, its API, usage examples,
+  and how to run tests.
+verify:
+  type: file_exists
+  path: README.md
+tags:
+  - rust
+  - documentation
+  - medium

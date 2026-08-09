@@ -1,0 +1,36 @@
+id: format-code
+name: "Format code with rustfmt"
+description: |
+  Given a Rust file with formatting issues, run cargo fmt to fix it.
+difficulty: easy
+category: infra
+skills: ["rust"]
+setup:
+  - action: mkdir
+    path: src
+  - action: write
+    path: Cargo.toml
+    content: |
+      [package]
+      name = "format-code"
+      version = "0.1.0"
+      edition = "2021"
+
+      [bin]
+      name = "format-code"
+      path = "src/main.rs"
+  - action: write
+    path: src/main.rs
+    content: |
+      fn main(){
+      let x=5;
+      let y=10;
+      println!("x={}, y={}",x,y);
+      }
+instruction: |
+  Run `cargo fmt` to fix formatting in src/main.rs. Then verify with `cargo fmt --check`.
+verify:
+  type: cargo_fmt
+tags:
+  - rust
+  - infrastructure

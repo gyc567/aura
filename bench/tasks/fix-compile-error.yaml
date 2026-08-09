@@ -1,0 +1,38 @@
+id: fix-compile-error
+name: "Fix a compile error"
+description: |
+  Given a Rust file with a compile error, fix it so the project builds.
+difficulty: easy
+category: bugfix
+skills: ["rust"]
+setup:
+  - action: mkdir
+    path: src
+  - action: write
+    path: Cargo.toml
+    content: |
+      [package]
+      name = "fix-compile-error"
+      version = "0.1.0"
+      edition = "2021"
+
+      [bin]
+      name = "fix-compile-error"
+      path = "src/main.rs"
+  - action: write
+    path: src/main.rs
+    content: |
+      fn main() {
+          println!("Hello, {}", name);
+      }
+instruction: |
+  Fix the compile error in src/main.rs. The variable `name` is not defined.
+  Define it as a string literal "World".
+verify:
+  type: command
+  command: "cargo build --quiet"
+  cwd: "${AURA_WORKSPACE}"
+  timeout_seconds: 60
+tags:
+  - rust
+  - bugfix

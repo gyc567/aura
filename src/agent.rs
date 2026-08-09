@@ -5,21 +5,22 @@
 //! v1 关键不变量：
 //! - 唯一驱动：`interrupted` 标志 / `budget.check_turns` / 模型返回非 `Call` / `?` 传播。
 //! - `recorder.transition` 失败只记录不阻断（`let _ =`）。
-//! - 工具错误立即结束循环，**不喂回模型**。
+//! - 工具错误**喂回模型**继续执行，由 `error_budget` 封顶（默认 3 次）。
 //! - 并发模型：`tokio` 单线程运行时；`Arc<StateMachine>` + `Arc<AtomicBool>` 通过
 //!   `Clone` 共享给 SIGINT handler。
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Instant;
 
 use crate::domain::{Decision, Message, TaskRequest};
 use crate::error::AgentError;
 use crate::event::{AgentEvent, EventSink};
 use crate::model::{ModelGateway, ModelRequest, ModelResponse};
 use crate::registry::ToolRegistry;
-use crate::reminders::RemindedOutput;
-use crate::reminders::SystemReminders;
-use crate::state::{AgentState, Budget, StateMachine};
+use crate::reminders::{RemindedOutput, SystemReminders};
+use crate::session::Session;
+use crate::state::{AgentState, Budget, ErrorBudget, StateMachine};
 
 /// 一次 `run` 的最终报告。
 #[derive(Debug, Clone)]
@@ -56,7 +57,7 @@ pub enum StopReasonPayload {
         /// 已用轮次。
         used: u32,
     },
-    /// 工具执行失败（v1 立即结束循环）。
+    /// 错误预算耗尽，工具执行循环终止。
     ToolFailed {
         /// 错误信息。
         message: String,
@@ -70,12 +71,22 @@ pub enum StopReasonPayload {
 /// # Errors
 ///
 /// 见 [`RunReport::stop_reason`]；CLI 据此返回非零退出码。
-#[allow(clippy::too_many_lines)]
-pub async fn run<M, R, S>(
+/// `Agent::run` 顶层循环（Session-aware v1.2）。
+///
+/// 接收 `&mut Session` 而非裸 `Vec<Message>`，通过 Session 统一管理消息历史、
+/// transcript 持久化与子代理注册表。
+///
+/// # Errors
+///
+/// 见 [`RunReport::stop_reason`]；CLI 据此返回非零退出码。
+#[allow(clippy::too_many_lines, clippy::too_many_arguments)]
+pub async fn run_with_session<M, R, S>(
     task: TaskRequest,
     model: &M,
     registry: &R,
     budget: Budget,
+    error_budget: ErrorBudget,
+    session: &mut Session,
     sink: &mut S,
     interrupted: Arc<AtomicBool>,
 ) -> Result<RunReport, AgentError>
@@ -89,10 +100,18 @@ where
     });
 
     let mut recorder = StateMachine::new();
-    let mut messages: Vec<Message> = vec![Message::System {
-        content: SystemReminders::baseline().join("\n"),
-    }];
+    // Ensure system message is in session (idempotent via replay check)
+    if session.messages().is_empty() {
+        let system_msg = Message::System {
+            content: SystemReminders::baseline().join("\n"),
+        };
+        session
+            .push(system_msg)
+            .map_err(|e| AgentError::Context(format!("append system message: {e}")))?;
+    }
     let mut used_turns: u32 = 0;
+    let mut error_budget = error_budget;
+    let start = Instant::now();
     let stop_reason: StopReasonPayload;
 
     loop {
@@ -105,9 +124,13 @@ where
             stop_reason = StopReasonPayload::BudgetExhausted { used: used_turns };
             break;
         }
+        if budget.check_wall_time(start.elapsed()).is_err() {
+            stop_reason = StopReasonPayload::BudgetExhausted { used: used_turns };
+            break;
+        }
 
         sink.emit(AgentEvent::ModelRequested);
-        let req = ModelRequest::new(task.instruction.clone(), messages.clone());
+        let req = ModelRequest::new(task.instruction.clone(), session.messages().to_vec());
         let resp: ModelResponse = model.complete(req).await?;
 
         // 终止条件：非 Call 即结束
@@ -137,13 +160,27 @@ where
         let output = match registry.execute(&call, &ctx) {
             Ok(o) => o,
             Err(e) => {
-                stop_reason = StopReasonPayload::ToolFailed {
-                    message: e.to_string(),
-                };
+                let exhausted = error_budget.record();
+                let err_msg = e.to_string();
                 sink.emit(AgentEvent::Failed {
-                    error: e.to_string(),
+                    error: err_msg.clone(),
                 });
-                break;
+                if exhausted {
+                    stop_reason = StopReasonPayload::ToolFailed { message: err_msg };
+                    break;
+                }
+                // 错误回填：附加错误消息和恢复提醒，继续循环
+                let reminder = SystemReminders::error_recovery(error_budget.remaining());
+                let content = format!("Tool error: {}\n\n{}", err_msg, reminder.join("\n"));
+                session
+                    .push(Message::Tool {
+                        call_id: call.id.clone(),
+                        output: content,
+                        success: false,
+                    })
+                    .map_err(|e| AgentError::Context(format!("push tool error msg: {e}")))?;
+                used_turns = used_turns.saturating_add(1);
+                continue;
             }
         };
 
@@ -152,11 +189,13 @@ where
             name: call.name.clone(),
             success: output.success,
         });
-        messages.push(Message::Tool {
-            call_id: call.id.clone(),
-            output: reminded.to_text(),
-            success: output.success,
-        });
+        session
+            .push(Message::Tool {
+                call_id: call.id.clone(),
+                output: reminded.to_text(),
+                success: output.success,
+            })
+            .map_err(|e| AgentError::Context(format!("push tool result msg: {e}")))?;
         used_turns = used_turns.saturating_add(1);
     }
 
@@ -188,4 +227,39 @@ where
         stop_reason,
         todo_final: Vec::new(),
     })
+}
+
+/// `Agent::run` 顶层循环（向后兼容包装器）。
+///
+/// 创建一个默认的 `Session`（内存 transcript） 并委托给 [`run_with_session`]。
+///
+/// # Errors
+///
+/// 见 [`RunReport::stop_reason`]；CLI 据此返回非零退出码。
+pub async fn run<M, R, S>(
+    task: TaskRequest,
+    model: &M,
+    registry: &R,
+    budget: Budget,
+    error_budget: ErrorBudget,
+    sink: &mut S,
+    interrupted: Arc<AtomicBool>,
+) -> Result<RunReport, AgentError>
+where
+    M: ModelGateway + ?Sized,
+    R: ToolRegistry + ?Sized,
+    S: EventSink,
+{
+    let mut session = Session::new(task.workspace.clone(), None);
+    run_with_session(
+        task,
+        model,
+        registry,
+        budget,
+        error_budget,
+        &mut session,
+        sink,
+        interrupted,
+    )
+    .await
 }

@@ -184,6 +184,8 @@ pub struct Budget {
     pub max_turns: u32,
     /// 上下文最大字节数。
     pub max_context_bytes: u64,
+    /// 最大墙上时间（从 agent 启动起算）。`None` = 不限制。
+    pub max_wall_time: Option<std::time::Duration>,
 }
 
 impl Budget {
@@ -206,9 +208,9 @@ impl Budget {
         Ok(Self {
             max_turns,
             max_context_bytes,
+            max_wall_time: None,
         })
     }
-
     /// 校验轮次是否仍在预算内。
     ///
     /// # Errors
@@ -239,5 +241,63 @@ impl Budget {
         } else {
             Ok(())
         }
+    }
+    /// 校验墙上时间是否仍在预算内。
+    ///
+    /// # Errors
+    ///
+    /// - [`AgentError::BudgetExhausted`]：已超最大时间。
+    pub fn check_wall_time(&self, elapsed: std::time::Duration) -> Result<(), AgentError> {
+        if let Some(limit) = self.max_wall_time {
+            if elapsed > limit {
+                return Err(AgentError::BudgetExhausted(format!(
+                    "elapsed {elapsed:?}, max {limit:?}"
+                )));
+            }
+        }
+        Ok(())
+    }
+}
+
+/// 工具错误预算。
+///
+/// 工具执行失败时消耗一个单位；达到零时强制停止循环。
+/// 默认值 3（由 `ErrorBudget::default()` 提供）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ErrorBudget {
+    remaining: u32,
+}
+
+impl ErrorBudget {
+    /// 创建指定容量的错误预算。
+    #[must_use]
+    pub fn new(max: u32) -> Self {
+        Self { remaining: max }
+    }
+
+    /// 剩余可容忍的错误次数。
+    #[must_use]
+    pub fn remaining(&self) -> u32 {
+        self.remaining
+    }
+
+    /// 消耗一次错误预算。
+    ///
+    /// # Returns
+    ///
+    /// `true` — 预算已耗尽，应停止循环。
+    /// `false` — 仍有剩余，继续执行。
+    pub fn record(&mut self) -> bool {
+        if self.remaining == 0 {
+            return true;
+        }
+        self.remaining = self.remaining.saturating_sub(1);
+        self.remaining == 0
+    }
+}
+
+impl Default for ErrorBudget {
+    fn default() -> Self {
+        Self { remaining: 3 }
     }
 }

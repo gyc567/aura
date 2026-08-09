@@ -1,0 +1,41 @@
+id: add-tests-to-lib
+name: "Add unit tests to a library"
+description: |
+  Given a simple Rust library with add and sub functions, write comprehensive unit tests.
+difficulty: easy
+category: testing
+skills: ["rust", "testing"]
+setup:
+  - action: mkdir
+    path: src
+  - action: mkdir
+    path: tests
+  - action: write
+    path: Cargo.toml
+    content: |
+      [package]
+      name = "calc-lib"
+      version = "0.1.0"
+      edition = "2021"
+
+      [lib]
+      name = "calc_lib"
+      path = "src/lib.rs"
+  - action: write
+    path: src/lib.rs
+    content: |
+      /// Adds two integers.
+      pub fn add(a: i32, b: i32) -> i32 { a + b }
+
+      /// Subtracts b from a.
+      pub fn sub(a: i32, b: i32) -> i32 { a - b }
+instruction: |
+  Write comprehensive unit tests for src/lib.rs in tests/unit_test.rs.
+  Cover: add, sub, and basic edge cases.
+verify:
+  type: cargo_test
+  timeout_seconds: 60
+tags:
+  - rust
+  - testing
+  - beginner

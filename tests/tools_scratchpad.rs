@@ -1,0 +1,184 @@
+//! `scratchpad` 工具集成测试。
+
+use aura::tools::scratchpad::ScratchpadTool;
+use aura::{Tool, ToolArgument, ToolContext, ToolInput};
+use serde_json::json;
+
+#[test]
+fn test_scratchpad_set_and_get() {
+    let temp = tempfile::TempDir::new().unwrap();
+    let tool = ScratchpadTool::new(temp.path().to_path_buf());
+    let ctx = ToolContext::new("/tmp".into(), "c1");
+
+    let args = ToolArgument::new(json!({
+        "action": "set",
+        "name": "foo",
+        "value": "hello world"
+    }));
+    let out = tool.execute(ToolInput::new(args), &ctx).unwrap();
+    assert!(out.success);
+
+    let args = ToolArgument::new(json!({
+        "action": "get",
+        "name": "foo"
+    }));
+    let out = tool.execute(ToolInput::new(args), &ctx).unwrap();
+    assert_eq!(out.content, "hello world");
+}
+
+#[test]
+fn test_scratchpad_append() {
+    let temp = tempfile::TempDir::new().unwrap();
+    let tool = ScratchpadTool::new(temp.path().to_path_buf());
+    let ctx = ToolContext::new("/tmp".into(), "c1");
+
+    // set initial
+    let args = ToolArgument::new(json!({
+        "action": "set",
+        "name": "notes",
+        "value": "first line"
+    }));
+    tool.execute(ToolInput::new(args), &ctx).unwrap();
+
+    // append second
+    let args = ToolArgument::new(json!({
+        "action": "append",
+        "name": "notes",
+        "value": "second line"
+    }));
+    let out = tool.execute(ToolInput::new(args), &ctx).unwrap();
+    assert!(out.success);
+
+    // verify combined
+    let args = ToolArgument::new(json!({
+        "action": "get",
+        "name": "notes"
+    }));
+    let out = tool.execute(ToolInput::new(args), &ctx).unwrap();
+    assert_eq!(out.content, "first line\nsecond line");
+}
+
+#[test]
+fn test_scratchpad_list() {
+    let temp = tempfile::TempDir::new().unwrap();
+    let tool = ScratchpadTool::new(temp.path().to_path_buf());
+    let ctx = ToolContext::new("/tmp".into(), "c1");
+
+    for (n, v) in [("key_a", "val1"), ("key_b", "val2")] {
+        let args = ToolArgument::new(json!({
+            "action": "set", "name": n, "value": v
+        }));
+        tool.execute(ToolInput::new(args), &ctx).unwrap();
+    }
+
+    let args = ToolArgument::new(json!({"action": "list"}));
+    let out = tool.execute(ToolInput::new(args), &ctx).unwrap();
+    let parsed: Vec<serde_json::Value> = serde_json::from_str(&out.content).unwrap();
+    assert_eq!(parsed.len(), 2);
+    // each entry has name, bytes, updated_at
+    for entry in &parsed {
+        assert!(entry.get("name").is_some());
+        assert!(entry.get("bytes").is_some());
+        assert!(entry.get("updated_at").is_some());
+    }
+}
+
+#[test]
+fn test_scratchpad_clear() {
+    let temp = tempfile::TempDir::new().unwrap();
+    let tool = ScratchpadTool::new(temp.path().to_path_buf());
+    let ctx = ToolContext::new("/tmp".into(), "c1");
+
+    for (n, v) in [("x", "1"), ("y", "2"), ("z", "3")] {
+        let args = ToolArgument::new(json!({
+            "action": "set", "name": n, "value": v
+        }));
+        tool.execute(ToolInput::new(args), &ctx).unwrap();
+    }
+
+    let args = ToolArgument::new(json!({"action": "clear"}));
+    let out = tool.execute(ToolInput::new(args), &ctx).unwrap();
+    assert!(out.content.contains("3 entries cleared"));
+
+    let args = ToolArgument::new(json!({"action": "list"}));
+    let out = tool.execute(ToolInput::new(args), &ctx).unwrap();
+    let parsed: Vec<serde_json::Value> = serde_json::from_str(&out.content).unwrap();
+    assert!(parsed.is_empty());
+}
+
+#[test]
+fn test_scratchpad_get_nonexistent() {
+    let temp = tempfile::TempDir::new().unwrap();
+    let tool = ScratchpadTool::new(temp.path().to_path_buf());
+    let ctx = ToolContext::new("/tmp".into(), "c1");
+
+    let args = ToolArgument::new(json!({
+        "action": "get",
+        "name": "this_key_does_not_exist"
+    }));
+    let err = tool.execute(ToolInput::new(args), &ctx).unwrap_err();
+    let msg = err.to_string();
+    assert!(msg.contains("key not found") || msg.contains("this_key_does_not_exist"));
+}
+
+#[test]
+fn test_scratchpad_append_nonexistent() {
+    let temp = tempfile::TempDir::new().unwrap();
+    let tool = ScratchpadTool::new(temp.path().to_path_buf());
+    let ctx = ToolContext::new("/tmp".into(), "c1");
+
+    let args = ToolArgument::new(json!({
+        "action": "append",
+        "name": "ghost_key",
+        "value": "nope"
+    }));
+    let err = tool.execute(ToolInput::new(args), &ctx).unwrap_err();
+    let msg = err.to_string();
+    assert!(msg.contains("key not found") || msg.contains("ghost_key"));
+}
+
+#[test]
+fn test_scratchpad_idempotent_unchanged() {
+    let temp = tempfile::TempDir::new().unwrap();
+    let tool = ScratchpadTool::new(temp.path().to_path_buf());
+    let ctx = ToolContext::new("/tmp".into(), "c1");
+
+    // set once
+    let args = ToolArgument::new(json!({
+        "action": "set", "name": "steady", "value": "same"
+    }));
+    tool.execute(ToolInput::new(args), &ctx).unwrap();
+
+    // same value with idempotent=true → "unchanged"
+    let args = ToolArgument::new(json!({
+        "action": "set", "name": "steady", "value": "same", "idempotent": true
+    }));
+    let out = tool.execute(ToolInput::new(args), &ctx).unwrap();
+    assert_eq!(out.content, "unchanged");
+
+    // different value → overwrites
+    let args = ToolArgument::new(json!({
+        "action": "set", "name": "steady", "value": "changed", "idempotent": true
+    }));
+    let out = tool.execute(ToolInput::new(args), &ctx).unwrap();
+    assert_eq!(out.content, "set `steady`");
+
+    let args = ToolArgument::new(json!({"action": "get", "name": "steady"}));
+    let out = tool.execute(ToolInput::new(args), &ctx).unwrap();
+    assert_eq!(out.content, "changed");
+}
+
+#[test]
+fn test_scratchpad_works_via_dyn_tool() {
+    // verify it works when called through `&dyn Tool`
+    let temp = tempfile::TempDir::new().unwrap();
+    let tool: Box<dyn Tool> = Box::new(ScratchpadTool::new(temp.path().to_path_buf()));
+    let ctx = ToolContext::new("/tmp".into(), "c1");
+
+    let args = ToolArgument::new(json!({
+        "action": "set", "name": "dyn_test", "value": "via_trait"
+    }));
+    let out = tool.execute(ToolInput::new(args), &ctx).unwrap();
+    assert!(out.success);
+    assert_eq!(tool.name(), "scratchpad");
+}

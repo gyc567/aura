@@ -1,0 +1,31 @@
+id: hello-world
+name: "Hello World"
+description: |
+  Create a minimal Rust program that prints "Hello, World!" to stdout.
+difficulty: easy
+category: feature
+skills: ["rust"]
+setup:
+  - action: mkdir
+    path: src
+  - action: write
+    path: Cargo.toml
+    content: |
+      [package]
+      name = "hello-world"
+      version = "0.1.0"
+      edition = "2021"
+
+      [bin]
+      name = "hello-world"
+      path = "src/main.rs"
+instruction: |
+  Create src/main.rs that prints "Hello, World!" when run with `cargo run`.
+verify:
+  type: command
+  command: "cargo run --quiet"
+  cwd: "${AURA_WORKSPACE}"
+  timeout_seconds: 60
+tags:
+  - beginner
+  - rust
