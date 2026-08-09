@@ -24,6 +24,35 @@ Append one entry per run. Prune entries older than 30 days.
 
 ```json
 {
+  "run_id": "2026-08-09T14:45:00Z",
+  "pattern": "subagent-inbox (architecture 4.2 completion)",
+  "duration_s": 1800,
+  "items_found": 1,
+  "actions_taken": 4,
+  "escalations": 0,
+  "tokens_estimate": 15000,
+  "outcome": "fix-proposed",
+  "fixes": [
+    "ChildRegistry::drain_inbox (take+clear) + ChildInbox handle (Arc registry + child_id)",
+    "run_with_session gains Option<ChildInbox>: each turn drains and injects parent messages as Message::User ('[message from <from>]: ...') before the model request",
+    "subagent spawn passes its ChildInbox; run() and main.rs resume path pass None",
+    "tests: 2 children unit (drain_inbox, ChildInbox) + 1 integration (pre-filled inbox appears in first model request, cleared after)"
+  ],
+  "files_modified": ["src/children/mod.rs", "src/agent.rs", "src/tools/subagent.rs", "src/main.rs", "src/lib.rs", "tests/subagent_spawn.rs", "STATE.md"],
+  "tests_total": 397,
+  "tests_new": 3,
+  "clippy_warnings": 0,
+  "quality_gates": {
+    "cargo_fmt_check": "PASS",
+    "cargo_clippy": "PASS (0 warnings on --all-targets)",
+    "cargo_test": "PASS (397 tests)"
+  },
+  "next": "release v0.1.0 publish still waits on macos-x64 job (GitHub Intel runner queue); when draft release exists -> test install.sh real download"
+}
+
+
+```json
+{
   "run_id": "2026-08-09T14:35:00Z",
   "pattern": "release-trigger (tag v0.1.0 + CI fix)",
   "duration_s": 1200,
