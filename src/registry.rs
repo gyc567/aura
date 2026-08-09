@@ -23,6 +23,11 @@ pub trait ToolRegistry: Send + Sync {
     /// - [`AgentError::UnknownTool`]：工具名不在注册表中。
     /// - 工具自身 `execute` 返回的任何错误（透传）。
     fn execute(&self, call: &ToolCall, ctx: &ToolContext) -> Result<ToolOutput, AgentError>;
+
+    /// 列出全部可用工具的 schema，供模型发现工具（发送到 provider 的 `tools` 字段）。
+    fn schemas(&self) -> Vec<ToolSchema> {
+        Vec::new()
+    }
 }
 
 /// 内存版注册表。基于 `HashMap<name, Arc<dyn Tool>>` 实现。
@@ -82,5 +87,9 @@ impl ToolRegistry for InMemoryRegistry {
             .ok_or_else(|| AgentError::UnknownTool(call.name.clone()))?;
         let input = ToolInput::new(call.arguments.clone());
         tool.execute(input, ctx)
+    }
+
+    fn schemas(&self) -> Vec<ToolSchema> {
+        self.schemas()
     }
 }

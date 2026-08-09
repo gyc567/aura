@@ -81,6 +81,7 @@ fn truncate_drops_early_messages_when_over_budget() {
     for i in 0..5 {
         msgs.push(Message::Assistant {
             content: format!("assistant {i}"),
+            tool_calls: Vec::new(),
         });
     }
     let total_before = msgs.iter().map(message_len).sum::<u64>();
@@ -136,7 +137,7 @@ fn message_len(m: &Message) -> u64 {
     match m {
         Message::System { content }
         | Message::User { content }
-        | Message::Assistant { content } => content.len() as u64,
+        | Message::Assistant { content, .. } => content.len() as u64,
         Message::Tool { output, .. } => output.len() as u64,
     }
 }
@@ -152,6 +153,7 @@ fn truncate_zero_budget_keeps_only_system_and_instruction() {
         },
         Message::Assistant {
             content: "early".into(),
+            tool_calls: Vec::new(),
         },
     ];
     let r = truncate_messages(msgs, 1).unwrap();

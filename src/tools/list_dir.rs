@@ -60,19 +60,7 @@ impl Tool for ListDirTool {
             .and_then(|v| v.as_str())
             .ok_or_else(|| AgentError::InvalidArguments("missing `path` field".into()))?;
 
-        let rel = Path::new(path);
-        let abs = if rel.is_absolute() {
-            rel.to_path_buf()
-        } else {
-            ctx.workspace.join(rel)
-        };
-        let abs = abs.canonicalize().unwrap_or_else(|_| abs.clone());
-        if !abs.starts_with(&ctx.workspace) {
-            return Err(AgentError::PathPolicy(format!(
-                "path {} escapes workspace",
-                abs.display()
-            )));
-        }
+        let abs = crate::paths::resolve_in_workspace(Path::new(path), &ctx.workspace)?;
 
         if !abs.is_dir() {
             return Err(AgentError::Context(format!(

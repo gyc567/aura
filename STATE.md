@@ -32,6 +32,14 @@ Last run: 2026-08-09T17:00Z (Full audit of uncommitted changes; 3H+4M+3S finding
   - 端到端 spawn 测试 `tests/subagent_spawn.rs`（+5）：父 spawn → 子代理后台跑完 → registry Completed + 结果可收集；子代理执行工具循环（todo_write 入 transcript）；subagent_result 状态/错误分支
   - 全量 385 tests / fmt / clippy 全绿；README 工具清单同步
 - **cargo audit** — ✅ 0 vulnerabilities（180 deps）。本机 `~/.gitconfig` 的 `http.version=http/1.1`（小写非法）导致 libgit2 失败；用 `GIT_CONFIG_GLOBAL=/dev/null cargo audit` 绕过，未改用户全局配置
+- **真实模型 E2E（MiniMax M2.5，2026-08-09 第四轮）** — ✅ COMPLETE，4 个真 bug 全修复
+  - B1 任务指令从未发给 provider：`agent.rs` 把指令放 `ModelRequest.system`（HTTP 适配器忽略），messages 里没有 user 指令 → MiniMax 400 `chat content is empty`。修复：session 注入 `Message::User`（幂等，resume 不重复）
+  - B2 工具 schema 从未附加：`ToolRegistry` trait 无 `schemas()`，agent 不调 `with_tool_schemas` → 请求无 `tools` 字段 → 模型无法标准调用工具。修复：trait 加 `schemas()` + agent 挂载（+2 mock HTTP 测试）
+  - B3 assistant 消息丢失 tool_calls：`Message::Assistant` 无 `tool_calls` 字段，循环也不 push assistant → MiniMax 400 `tool id not found`。修复：字段 + serde(default) 向后兼容 + 循环 push assistant（含 tool_calls）+ wire 转换（+1 测试）
+  - B4 路径越界误报：macOS `/tmp`→`/private/tmp`，canonicalize 后与未规范化 workspace 比较 → 绝对路径误报 `escapes workspace`。修复：新 `src/paths.rs::resolve_in_workspace`（canonicalize 最深已存在祖先 + 拼回缺失段 + 双侧统一），替换 7 处重复实现（read/write/list_dir/grep/find/run_command/policy）+ workspace 入口 canonicalize（+4 测试）
+  - 附加：bench 种子任务 `[bin]` → `[[bin]]`（cargo 必挂，3 任务）；bench run_id/iso_timestamp 日期算法重写（Howard Hinnant civil_from_days，+2 测试）
+  - 验证：真实 MiniMax `write_file`+`rustc`+运行全链路 rc=0（4 轮）；`aura bench run hello-world` 真实模型 PASS（5 轮，verify 0）
+  - MiniMax 凭据：已存入 macOS keychain（service `MINIMAX_API_KEY`，account `aura`）；运行时 `AURA_API_KEY` 环境变量，未落盘/未进 git
 
 ## Quality Gates
 
@@ -54,9 +62,10 @@ Last run: 2026-08-09T17:00Z (Full audit of uncommitted changes; 3H+4M+3S finding
 
 ## Watch List
 
-- Phase 5 revisit: mock HTTP server for `complete()` coverage
+- ~~Phase 5 revisit: mock HTTP for `complete()`~~ ✅ 完成（mock TCP 服务器测试，2026-08-09 第四轮）
 - ~~cargo audit~~ ✅ 0 vulnerabilities（2026-08-09，需 `GIT_CONFIG_GLOBAL=/dev/null` 绕过非法 http.version）
 - subagent inbox 消费：`agent_message` 投递进子代理 inbox，但子代理循环尚未读取（架构 §4.2 语义待接线）
+- `~/.gitconfig` 的 `http.version=http/1.1`（小写非法）：建议人工改成 `HTTP/1.1`，消除 git 警告与 cargo-audit 报错
 
 ## Work Log — 完整 / 未完整（2026-08-09 第二轮 push 后）
 
@@ -65,7 +74,8 @@ Last run: 2026-08-09T17:00Z (Full audit of uncommitted changes; 3H+4M+3S finding
 | 工作 | 交付物 |
 |------|--------|
 | **subagent 完整化（第三轮）** | `subagent_result` 工具 + 子会话 JSONL transcript + spawn E2E 测试（+5）；385 tests 全绿 |
-| **cargo audit** | 0 vulnerabilities（180 deps）；`GIT_CONFIG_GLOBAL=/dev/null` 绕过非法 gitconfig | bin 统一 `aura`；`cargo install` 验证；fake-model 端到端 exit 0；README 补全 |
+| **cargo audit** | 0 vulnerabilities（180 deps）；`GIT_CONFIG_GLOBAL=/dev/null` 绕过非法 gitconfig |
+| **真实模型 E2E（第四轮）** | MiniMax M2.5 打通；修复 B1-B4 四个真 bug（指令未发/工具 schema 缺失/assistant tool_calls 丢失/路径规范化）+ bench `[bin]` + 时间戳；394 tests 全绿 | bin 统一 `aura`；`cargo install` 验证；fake-model 端到端 exit 0；README 补全 |
 | 配置文件支持 | `~/.config/aura/config.toml`，优先级 CLI>config>env，坏配置 fail fast；10 测试 |
 | CI/CD release 自动化 | 5 平台原生矩阵 + tar.gz/zip 打包 + tag 触发 draft release + install.sh |
 | 安装脚本 | 平台检测、curl `--`、AURA_SHA256 校验、PATH 提示、自验；本地端到端实测通过 |
@@ -84,7 +94,7 @@ Last run: 2026-08-09T17:00Z (Full audit of uncommitted changes; 3H+4M+3S finding
 |----|------|------|
 | macos-x64 CI | 进行中 | 第二/三轮 run 排队（Intel runner 繁忙），5/6 平台已验证 |
 | tag v0.1.0 + release | 待做 | CI 全绿后打 tag 触发 publish → draft release → 测 install.sh 真实下载 |
-| 真实模型 E2E | 需人工 | 环境只有 ANTHROPIC_API_KEY / EM_API_KEY（非 OpenAI-compatible）；需提供 endpoint + model |
+| ~~真实模型 E2E~~ | ✅ 完成 | MiniMax M2.5 全链路（write_file/rustc/运行 + bench hello-world PASS）；修复 4 真 bug（2026-08-09 第四轮）；凭据存 keychain `MINIMAX_API_KEY` |
 | ~~subagent spawn 完整测试~~ | ✅ 完成 | `tests/subagent_spawn.rs` +5 测试；顺带补 `subagent_result` 工具 + 子会话 transcript 落盘（2026-08-09 第三轮） |
 | main.rs binary helpers 单测 | 建议 | bin 内函数需重构到 lib 或集成测试 |
 | bench submit / Docker sandbox | 未来 | Docker daemon 本机不可用 |

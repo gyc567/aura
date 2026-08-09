@@ -122,6 +122,7 @@ fn messages_serde_round_trip() {
         },
         Message::Assistant {
             content: "a".into(),
+            tool_calls: Vec::new(),
         },
         Message::Tool {
             call_id: "c".into(),

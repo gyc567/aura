@@ -22,7 +22,7 @@ use aura::agent::run_with_session as run_agent_with_session;
 use aura::agent::{RunReport, StopReasonPayload, run as run_agent};
 use aura::bench::{
     BenchSuite, Summary, TaskResult, TaskSpec, format_diff_report,
-    format_text_report as format_bench_report,
+    format_text_report as format_bench_report, run_id_now,
 };
 use aura::children::ChildRegistry;
 use aura::cli::{BenchCommand, CliArgs, CliCommand, CliPolicyLevel};
@@ -231,31 +231,6 @@ fn run_bench_list() -> Result<ExitCode, AgentError> {
         }
     }
     Ok(ExitCode::from(0))
-}
-
-/// Generate a unique run ID based on current timestamp.
-fn run_id_now() -> String {
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default();
-    let secs = now.as_secs();
-    // Format as YYYY-MM-DDThhmmssZ (simplified)
-    let days = secs / 86400;
-    let rem = secs % 86400;
-    let hours = rem / 3600;
-    let minutes = (rem % 3600) / 60;
-    let seconds = rem % 60;
-    let base_days = 17532; // 2026-01-01 in days from epoch
-    let date_days = days.saturating_sub(base_days);
-    format!(
-        "run-{:04}{:02}{:02}T{:02}{:02}{:02}Z",
-        2026,
-        u32::try_from(date_days / 365).unwrap_or(99) % 100, // Simplified year calc
-        u32::try_from((date_days % 365) / 30 + 1).unwrap_or(12),
-        hours as u32,
-        minutes as u32,
-        seconds as u32
-    )
 }
 
 fn bench_task_template(name: &str) -> String {
@@ -543,7 +518,11 @@ fn resolve_workspace(given: Option<&Path>) -> Result<PathBuf, AgentError> {
             path.display()
         )));
     }
-    Ok(path)
+    // 规范化 workspace（macOS /tmp -> /private/tmp），让工具路径校验两侧一致。
+    let canonical = path
+        .canonicalize()
+        .map_err(|e| AgentError::InvalidRequest(format!("canonicalize workspace: {e}")))?;
+    Ok(canonical)
 }
 
 /// 退出码由 `StopReason` 决定。

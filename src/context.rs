@@ -229,7 +229,7 @@ fn message_bytes(m: &Message) -> u64 {
     let s: String = match m {
         Message::System { content }
         | Message::User { content }
-        | Message::Assistant { content } => content.clone(),
+        | Message::Assistant { content, .. } => content.clone(),
         Message::Tool { output, .. } => output.clone(),
     };
     s.len() as u64

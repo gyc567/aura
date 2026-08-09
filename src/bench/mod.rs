@@ -26,7 +26,10 @@ mod suite;
 #[allow(clippy::all)]
 mod workspace;
 
-pub use report::{CategoryStats, DifficultyStats, Summary, format_diff_report, format_text_report};
+pub use report::{
+    CategoryStats, DifficultyStats, Summary, format_diff_report, format_text_report, iso_timestamp,
+    run_id_now,
+};
 pub use runner::{TaskResult, TaskRunner, TaskStatus};
 pub use spec::{Category, Difficulty, SetupAction, TaskSpec, VerifySpec};
 pub use suite::BenchSuite;

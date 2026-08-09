@@ -125,21 +125,9 @@ impl Policy {
     ///
     /// - [`AgentError::PathPolicy`]：路径不在 workspace 内，或规范化失败。
     pub fn evaluate_path(&self, path: &Path) -> Result<PathBuf, AgentError> {
-        let absolute = if path.is_absolute() {
-            path.to_path_buf()
-        } else {
-            self.workspace.join(path)
-        };
-        let canonical = absolute.canonicalize().unwrap_or_else(|_| absolute.clone());
-        if !canonical.starts_with(&self.workspace) {
-            return Err(AgentError::PathPolicy(format!(
-                "path {} escapes workspace {}",
-                path.display(),
-                self.workspace.display()
-            )));
-        }
-        // `canonical` 可能指向不存在文件（用于 write_file）；但已通过 starts_with 检查。
-        Ok(canonical)
+        // 委托 paths::resolve_in_workspace：统一符号链接与不存在文件的规范化，
+        // 避免 macOS /tmp -> /private/tmp 等场景的误报。
+        crate::paths::resolve_in_workspace(path, &self.workspace)
     }
 
     /// 评估命令 argv 是否可执行。

@@ -115,6 +115,7 @@ impl Session {
     pub fn compact_messages(&mut self, summary: &str, core_window: &[Message]) {
         let mut new_messages = vec![Message::Assistant {
             content: format!("[earlier context summarized]\n{summary}"),
+            tool_calls: Vec::new(),
         }];
         new_messages.extend_from_slice(core_window);
         self.messages = new_messages;

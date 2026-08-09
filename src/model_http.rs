@@ -206,11 +206,14 @@ pub(crate) fn convert_messages(messages: &[Message]) -> Vec<WireMessage> {
                 tool_call_id: None,
                 tool_calls: Vec::new(),
             },
-            Message::Assistant { content } => WireMessage {
+            Message::Assistant {
+                content,
+                tool_calls,
+            } => WireMessage {
                 role: "assistant".into(),
                 content: Some(content.clone()),
                 tool_call_id: None,
-                tool_calls: Vec::new(),
+                tool_calls: convert_tool_calls(tool_calls),
             },
             Message::Tool {
                 call_id,
@@ -235,6 +238,21 @@ pub(crate) fn convert_schemas(schemas: &[ToolSchema]) -> Vec<WireTool> {
                 name: s.name.clone(),
                 description: s.description.clone(),
                 parameters: s.parameters.clone(),
+            },
+        })
+        .collect()
+}
+
+fn convert_tool_calls(calls: &[ToolCall]) -> Vec<WireToolCall> {
+    calls
+        .iter()
+        .map(|c| WireToolCall {
+            id: c.id.clone(),
+            kind: "function",
+            function: WireToolCallFunction {
+                name: c.name.clone(),
+                arguments: serde_json::to_string(c.arguments.as_value())
+                    .unwrap_or_else(|_| "{}".to_string()),
             },
         })
         .collect()
@@ -353,6 +371,7 @@ mod tests {
     fn convert_messages_assistant() {
         let msgs = vec![Message::Assistant {
             content: "hi".into(),
+            tool_calls: Vec::new(),
         }];
         let wire = convert_messages(&msgs);
         assert_eq!(wire[0].role, "assistant");
@@ -466,5 +485,176 @@ mod tests {
         };
         let result = parse_decision(&msg);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn convert_messages_assistant_with_tool_calls() {
+        let call = ToolCall::new(
+            "call_1",
+            "write_file",
+            ToolArgument::new(serde_json::json!({"path": "a.rs"})),
+        )
+        .unwrap();
+        let msgs = vec![Message::Assistant {
+            content: "calling".into(),
+            tool_calls: vec![call],
+        }];
+        let wire = convert_messages(&msgs);
+        assert_eq!(wire[0].role, "assistant");
+        assert_eq!(wire[0].tool_calls.len(), 1);
+        assert_eq!(wire[0].tool_calls[0].id, "call_1");
+        assert_eq!(wire[0].tool_calls[0].kind, "function");
+        assert_eq!(wire[0].tool_calls[0].function.name, "write_file");
+        assert!(
+            wire[0].tool_calls[0]
+                .function
+                .arguments
+                .contains("\"path\""),
+            "arguments should be the JSON string of the call args"
+        );
+    }
+
+    /// 本地 TCP mock 服务器：捕获请求体，返回指定 JSON 响应。
+    fn mock_server(
+        response: &'static str,
+    ) -> (String, std::sync::Arc<std::sync::Mutex<Option<String>>>) {
+        use std::io::{Read, Write};
+        use std::net::TcpListener;
+
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
+        let addr = listener.local_addr().unwrap();
+        let captured = std::sync::Arc::new(std::sync::Mutex::new(None));
+        let cap = captured.clone();
+        std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("accept");
+            let mut buf = Vec::new();
+            let mut chunk = [0u8; 4096];
+            let mut header_end = 0;
+            loop {
+                let n = stream.read(&mut chunk).expect("read headers");
+                if n == 0 {
+                    break;
+                }
+                buf.extend_from_slice(&chunk[..n]);
+                if let Some(pos) = buf.windows(4).position(|w| w == b"\r\n\r\n") {
+                    header_end = pos + 4;
+                    break;
+                }
+            }
+            let headers = String::from_utf8_lossy(&buf[..header_end]).to_lowercase();
+            let clen = headers
+                .lines()
+                .find_map(|l| {
+                    l.strip_prefix("content-length:")
+                        .map(|v| v.trim().parse::<usize>().unwrap_or(0))
+                })
+                .unwrap_or(0);
+            while buf.len() < header_end + clen {
+                let n = stream.read(&mut chunk).expect("read body");
+                if n == 0 {
+                    break;
+                }
+                buf.extend_from_slice(&chunk[..n]);
+            }
+            *cap.lock().unwrap() =
+                Some(String::from_utf8_lossy(&buf[header_end..header_end + clen]).to_string());
+            let resp = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                response.len(),
+                response
+            );
+            stream.write_all(resp.as_bytes()).expect("write resp");
+        });
+        (format!("http://{addr}"), captured)
+    }
+
+    #[tokio::test]
+    async fn complete_sends_user_instruction_and_tools() {
+        let response = r#"{"choices":[{"message":{"role":"assistant","content":null,"tool_calls":[{"id":"call_1","type":"function","function":{"name":"write_file","arguments":"{\"path\":\"a.rs\"}"}}]}}]}"#;
+        let (base, captured) = mock_server(response);
+        let config = HttpConfig::new(base, "MiniMax-M2.5".into(), "sk-test");
+        let adapter = HttpModelAdapter::with_client(config, reqwest::Client::new());
+        let req = ModelRequest::new(
+            String::new(),
+            vec![
+                Message::System {
+                    content: "reminders".into(),
+                },
+                Message::User {
+                    content: "do the thing".into(),
+                },
+            ],
+        )
+        .with_tool_schemas(vec![
+            ToolSchema {
+                name: "write_file".into(),
+                description: "w".into(),
+                parameters: serde_json::json!({"type": "object"}),
+            },
+            ToolSchema {
+                name: "run_command".into(),
+                description: "r".into(),
+                parameters: serde_json::json!({"type": "object"}),
+            },
+        ]);
+
+        let resp = adapter.complete(req).await.expect("complete");
+        assert!(matches!(resp.decision, Decision::Call(c) if c.name == "write_file"));
+
+        let body: serde_json::Value =
+            serde_json::from_str(captured.lock().unwrap().as_deref().unwrap()).unwrap();
+        assert_eq!(body["model"], "MiniMax-M2.5");
+        assert_eq!(body["stream"], serde_json::Value::Bool(false));
+        assert_eq!(body["messages"][0]["role"], "system");
+        assert_eq!(body["messages"][1]["role"], "user");
+        assert_eq!(body["messages"][1]["content"], "do the thing");
+        assert_eq!(body["tools"].as_array().unwrap().len(), 2);
+    }
+
+    #[tokio::test]
+    async fn complete_wire_keeps_assistant_tool_calls() {
+        let response = r#"{"choices":[{"message":{"role":"assistant","content":"done"}}]}"#;
+        let (base, captured) = mock_server(response);
+        let config = HttpConfig::new(base, "MiniMax-M2.5".into(), "sk-test");
+        let adapter = HttpModelAdapter::with_client(config, reqwest::Client::new());
+        let call = ToolCall::new(
+            "call_1",
+            "write_file",
+            ToolArgument::new(serde_json::json!({"path": "a.rs"})),
+        )
+        .unwrap();
+        let req = ModelRequest::new(
+            String::new(),
+            vec![
+                Message::System {
+                    content: "reminders".into(),
+                },
+                Message::User {
+                    content: "go".into(),
+                },
+                Message::Assistant {
+                    content: "calling".into(),
+                    tool_calls: vec![call.clone()],
+                },
+                Message::Tool {
+                    call_id: "call_1".into(),
+                    output: "ok".into(),
+                    success: true,
+                },
+            ],
+        );
+
+        let resp = adapter.complete(req).await.expect("complete");
+        assert!(matches!(resp.decision, Decision::Done { .. }));
+
+        let body: serde_json::Value =
+            serde_json::from_str(captured.lock().unwrap().as_deref().unwrap()).unwrap();
+        let asst = &body["messages"][2];
+        assert_eq!(asst["role"], "assistant");
+        assert_eq!(asst["tool_calls"][0]["id"], "call_1");
+        assert_eq!(asst["tool_calls"][0]["type"], "function");
+        assert_eq!(asst["tool_calls"][0]["function"]["name"], "write_file");
+        assert_eq!(body["messages"][3]["role"], "tool");
+        assert_eq!(body["messages"][3]["tool_call_id"], "call_1");
     }
 }

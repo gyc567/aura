@@ -38,13 +38,19 @@ impl LayeredContext {
 
         // 1. 历史摘要（最早插入，因为是"早期"内容）
         if let Some(summary) = self.history_summary {
-            result.push(Message::Assistant { content: summary });
+            result.push(Message::Assistant {
+                content: summary,
+                tool_calls: Vec::new(),
+            });
         }
 
         // 2. scratchpad 摘要
         if let Some(sp) = self.scratchpad_summary {
             let content = format!("## Working memory\n{sp}\n---\nUse this context as needed.");
-            result.push(Message::Assistant { content });
+            result.push(Message::Assistant {
+                content,
+                tool_calls: Vec::new(),
+            });
         }
 
         // 3. 核心窗口（追加，不覆盖前面的摘要）
@@ -63,7 +69,7 @@ fn message_byte_len(m: &Message) -> u64 {
     let s: &str = match m {
         Message::System { content }
         | Message::User { content }
-        | Message::Assistant { content } => content,
+        | Message::Assistant { content, .. } => content,
         Message::Tool { output, .. } => output,
     };
     s.len() as u64
@@ -94,7 +100,7 @@ fn summarize_early_messages(messages: &[Message]) -> String {
 
     for msg in messages {
         match msg {
-            Message::Assistant { content } => {
+            Message::Assistant { content, .. } => {
                 let snippet = if content.len() > 120 {
                     format!("{content}…")
                 } else {
@@ -212,6 +218,7 @@ mod tests {
     fn assistant(content: &str) -> Message {
         Message::Assistant {
             content: content.to_string(),
+            tool_calls: Vec::new(),
         }
     }
     fn tool(call_id: &str, output: &str) -> Message {
@@ -230,7 +237,7 @@ mod tests {
 
     fn assistant_content(msg: &Message) -> Option<&str> {
         match msg {
-            Message::Assistant { content } => Some(content),
+            Message::Assistant { content, .. } => Some(content),
             _ => None,
         }
     }

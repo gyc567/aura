@@ -315,7 +315,7 @@ fn session_compact_messages_replaces_early_with_summary() {
 
     assert_eq!(session.messages().len(), 3);
     assert!(
-        matches!(&session.messages()[0], Message::Assistant { content } if content.contains("earlier context summarized")),
+        matches!(&session.messages()[0], Message::Assistant { content, .. } if content.contains("earlier context summarized")),
         "first message is the summary"
     );
     assert!(matches!(&session.messages()[1], Message::System { .. }));

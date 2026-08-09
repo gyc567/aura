@@ -267,29 +267,76 @@ fn sorted<K: std::cmp::Ord + Clone, V>(map: &HashMap<K, V>) -> Vec<(K, &V)> {
     entries.into_iter().map(|(k, v)| (k.clone(), v)).collect()
 }
 
-fn iso_timestamp() -> String {
-    let now = std::time::SystemTime::now()
+fn civil_from_days(z: i64) -> (i64, u32, u32) {
+    let z = z + 719_468;
+    let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
+    let doe = z - era * 146_097; // [0, 146096]
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365; // [0, 399]
+    let y = yoe + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100); // [0, 365]
+    let mp = (5 * doy + 2) / 153; // [0, 11]
+    let d = (doy - (153 * mp + 2) / 5 + 1) as u32; // [1, 31]
+    let m = if mp < 10 { mp + 3 } else { mp - 9 } as u32; // [1, 12]
+    (if m <= 2 { y + 1 } else { y }, m, d)
+}
+
+/// 当前 UTC 时间 ISO 8601 格式（`YYYY-MM-DDTHH:MM:SSZ`）。
+pub fn iso_timestamp() -> String {
+    let secs = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .unwrap();
-    let secs = now.as_secs();
-    let base = 1_767_225_600i64; // 2026-01-01 00:00:00 UTC
-    let elapsed = i64::try_from(secs).unwrap_or(0) - base;
-    let days = elapsed / 86400;
-    let rem = elapsed % 86400;
-    let hours = rem / 3600;
-    let minutes = (rem % 3600) / 60;
-    let seconds = rem % 60;
+        .unwrap()
+        .as_secs() as i64;
+    let (y, mo, d) = civil_from_days(secs.div_euclid(86_400));
+    let rem = secs.rem_euclid(86_400);
     format!(
-        "2026-01-{:02}T{:02}:{:02}:{:02}Z",
-        u32::try_from(days + 1).unwrap_or(1),
-        u32::try_from(hours).unwrap_or(0),
-        u32::try_from(minutes).unwrap_or(0),
-        u32::try_from(seconds).unwrap_or(0)
+        "{y:04}-{mo:02}-{d:02}T{:02}:{:02}:{:02}Z",
+        rem / 3600,
+        (rem % 3600) / 60,
+        rem % 60
+    )
+}
+
+/// 当前 UTC 时间紧凑 run id（`run-YYYYMMDDTHHMMSSZ`）。
+pub fn run_id_now() -> String {
+    let secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs() as i64;
+    let (y, mo, d) = civil_from_days(secs.div_euclid(86_400));
+    let rem = secs.rem_euclid(86_400);
+    format!(
+        "run-{y:04}{mo:02}{d:02}T{:02}{:02}{:02}Z",
+        rem / 3600,
+        (rem % 3600) / 60,
+        rem % 60
     )
 }
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
+    #[test]
+    fn civil_from_days_known_dates() {
+        assert_eq!(civil_from_days(0), (1970, 1, 1));
+        assert_eq!(civil_from_days(951_782_400 / 86_400), (2000, 2, 29));
+        assert_eq!(civil_from_days(1_735_603_200 / 86_400), (2024, 12, 31));
+        assert_eq!(civil_from_days(1_767_225_600 / 86_400), (2026, 1, 1));
+    }
+
+    #[test]
+    fn run_id_and_iso_timestamp_shape() {
+        let id = run_id_now();
+        assert!(id.starts_with("run-20"), "got: {id}");
+        assert_eq!(id.len(), 20, "run-YYYYMMDDTHHMMSSZ expected, got: {id}");
+        assert!(
+            iso_timestamp().starts_with("20"),
+            "got: {}",
+            iso_timestamp()
+        );
+        assert_eq!(iso_timestamp().len(), 20, "YYYY-MM-DDTHH:MM:SSZ expected");
+    }
+
     use super::*;
     use crate::bench::runner::TaskResult;
     use crate::bench::spec::{Category, Difficulty};

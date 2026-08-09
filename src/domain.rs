@@ -106,6 +106,9 @@ pub enum Message {
     Assistant {
         /// 消息内容。
         content: String,
+        /// 本消息携带的工具调用（OpenAI 兼容协议要求 tool result 前有声明 tool id 的 assistant 消息）。
+        #[serde(default)]
+        tool_calls: Vec<ToolCall>,
     },
     /// 工具结果反馈。
     Tool {

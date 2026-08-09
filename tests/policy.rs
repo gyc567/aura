@@ -146,7 +146,13 @@ fn evaluate_path_within_workspace_passes() {
     let r = p
         .evaluate_path(PathBuf::from("/tmp/foo.txt").as_path())
         .unwrap();
-    assert!(r.starts_with("/tmp"));
+    // 修复后返回规范化路径（macOS /tmp -> /private/tmp），与 workspace 的规范化形式一致。
+    let canonical_tmp = PathBuf::from("/tmp").canonicalize().unwrap();
+    assert!(
+        r.starts_with(canonical_tmp),
+        "resolved path should stay inside canonicalized workspace, got: {}",
+        r.display()
+    );
 }
 
 #[test]

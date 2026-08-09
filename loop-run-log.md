@@ -24,6 +24,45 @@ Append one entry per run. Prune entries older than 30 days.
 
 ```json
 {
+  "run_id": "2026-08-09T15:00:00Z",
+  "pattern": "real-model-e2e (MiniMax M2.5, human-provided endpoint+key, L2)",
+  "duration_s": 5400,
+  "items_found": 7,
+  "actions_taken": 7,
+  "escalations": 0,
+  "tokens_estimate": 40000,
+  "outcome": "fix-proposed",
+  "fixes": [
+    "B1 task instruction never reached provider: agent.rs put instruction in ModelRequest.system (HTTP adapter ignores it), messages had no user msg -> MiniMax 400 'chat content is empty'. Fix: session injects Message::User (idempotent for resume)",
+    "B2 tool schemas never attached: ToolRegistry trait lacked schemas(), agent never called with_tool_schemas -> request had no tools field. Fix: trait schemas() + agent wiring (+2 mock-HTTP wire tests)",
+    "B3 assistant msg lost tool_calls: Message::Assistant had no tool_calls field; loop never pushed assistant msgs -> MiniMax 400 'tool id not found'. Fix: field + serde(default) + loop pushes assistant(tool_calls) + wire conversion (+1 test)",
+    "B4 path-escape false positive on macOS (/tmp -> /private/tmp): canonicalize vs un-canonicalized workspace. Fix: new src/paths.rs resolve_in_workspace (deepest existing ancestor canonicalize + re-append), replaced 7 duplicated impls + workspace canonicalize at entry (+4 tests)",
+    "bench seed tasks [bin] -> [[bin]] (3 yamls) — current cargo rejects [bin] table",
+    "bench run_id_now / iso_timestamp rewritten with Howard Hinnant civil_from_days (were producing '2026-01-221') (+2 tests)",
+    "MiniMax credential stored in macOS keychain (service MINIMAX_API_KEY, account aura); runtime via AURA_API_KEY env only"
+  ],
+  "files_created": ["src/paths.rs"],
+  "files_modified": ["src/agent.rs", "src/domain.rs", "src/model_http.rs", "src/registry.rs", "src/compaction.rs", "src/context.rs", "src/session/mod.rs", "src/tools/{read_file,write_file,list_dir,grep_files,find_files,run_command}.rs", "src/policy.rs", "src/main.rs", "src/bench/mod.rs", "src/bench/report.rs", "bench/tasks/{hello-world,fix-compile-error,format-code}.yaml", "tests/{policy,domain,context,session}.rs", "STATE.md", "loop-run-log.md"],
+  "tests_total": 394,
+  "tests_new": 9,
+  "clippy_warnings": 0,
+  "quality_gates": {
+    "cargo_fmt_check": "PASS",
+    "cargo_clippy": "PASS (0 warnings on --all-targets)",
+    "cargo_test": "PASS (394 tests, +9: 3 model_http mock HTTP, 4 paths, 2 date)",
+    "real_model_e2e": "PASS — MiniMax M2.5: write_file + rustc + run loop rc=0 (4 turns); aura bench run hello-world PASS (5 turns, verify exit 0)",
+    "cargo_audit": "PASS (0 vulnerabilities, 180 deps)"
+  },
+  "ci_status": {
+    "run_31307915435": "5/6 green; macos-x64 still queued on GitHub Intel runners",
+    "note": "this run's fixes pushed after commit; new CI run will trigger"
+  },
+  "next": "observe new CI run; macos-x64 green -> tag v0.1.0 + release publish + install.sh real download; subagent inbox consumption; fix ~/.gitconfig http.version (human)"
+}
+
+
+```json
+{
   "run_id": "2026-08-09T22:00:00Z",
   "pattern": "design-implementor (subagent completion: spawn E2E + subagent_result + transcript)",
   "duration_s": 2400,

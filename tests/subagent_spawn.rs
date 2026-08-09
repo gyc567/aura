@@ -60,7 +60,11 @@ impl ModelGateway for ScriptedModel {
     ) -> std::pin::Pin<
         Box<dyn std::future::Future<Output = Result<ModelResponse, AgentError>> + Send + '_>,
     > {
-        let decision = if req.system.contains("CHILD_MARKER") {
+        // 任务指令现在作为 User message 出现在 messages 中（agent.rs 修复后 system 为空）。
+        let is_child = req.messages.iter().any(
+            |m| matches!(m, aura::Message::User { content } if content.contains("CHILD_MARKER")),
+        );
+        let decision = if is_child {
             Self::pop(&self.child)
         } else {
             Self::pop(&self.parent)

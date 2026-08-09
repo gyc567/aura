@@ -120,20 +120,7 @@ impl Tool for RunCommandTool {
 
         // 工作目录
         let work_dir = if let Some(wd) = value.get("working_directory").and_then(|v| v.as_str()) {
-            let rel = Path::new(wd);
-            let abs = if rel.is_absolute() {
-                rel.to_path_buf()
-            } else {
-                ctx.workspace.join(rel)
-            };
-            let abs = abs.canonicalize().unwrap_or(abs);
-            if !abs.starts_with(&ctx.workspace) {
-                return Err(AgentError::PathPolicy(format!(
-                    "working_directory {} escapes workspace",
-                    abs.display()
-                )));
-            }
-            abs
+            crate::paths::resolve_in_workspace(Path::new(wd), &ctx.workspace)?
         } else {
             ctx.workspace.clone()
         };

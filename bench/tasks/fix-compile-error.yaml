@@ -16,7 +16,7 @@ setup:
       version = "0.1.0"
       edition = "2021"
 
-      [bin]
+      [[bin]]
       name = "fix-compile-error"
       path = "src/main.rs"
   - action: write

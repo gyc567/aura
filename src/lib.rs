@@ -25,6 +25,7 @@ pub mod event;
 pub mod model;
 pub mod model_http;
 pub mod output;
+pub mod paths;
 pub mod plugin;
 pub mod policy;
 pub mod precheck;

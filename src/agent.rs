@@ -105,6 +105,19 @@ where
             .push(system_msg)
             .map_err(|e| AgentError::Context(format!("append system message: {e}")))?;
     }
+    // Ensure the task instruction is present as a user message (idempotent via replay
+    // check) — 真实模型需要指令出现在 messages 里；`ModelRequest.system` 只作备用。
+    if !session
+        .messages()
+        .iter()
+        .any(|m| matches!(m, Message::User { .. }))
+    {
+        session
+            .push(Message::User {
+                content: task.instruction.clone(),
+            })
+            .map_err(|e| AgentError::Context(format!("append instruction message: {e}")))?;
+    }
     let mut used_turns: u32 = 0;
     let mut error_budget = error_budget;
     let start = Instant::now();
@@ -147,7 +160,8 @@ where
         };
 
         sink.emit(AgentEvent::ModelRequested);
-        let req = ModelRequest::new(task.instruction.clone(), messages_for_model);
+        let req = ModelRequest::new(String::new(), messages_for_model)
+            .with_tool_schemas(registry.schemas());
         let resp: ModelResponse = model.complete(req).await?;
 
         // 终止条件：非 Call 即结束
@@ -168,6 +182,14 @@ where
         };
 
         let call = call_opt.expect("Call branch is handled");
+        // 记录 assistant 消息（携带 tool_calls）——OpenAI 兼容协议要求 tool result
+        // 消息必须引用先前 assistant 消息中声明过的 tool id。
+        session
+            .push(Message::Assistant {
+                content: format!("{call:?}"),
+                tool_calls: vec![call.clone()],
+            })
+            .map_err(|e| AgentError::Context(format!("push assistant msg: {e}")))?;
         let _ = recorder.transition(AgentState::ExecutingTool);
         sink.emit(AgentEvent::ToolStarted {
             name: call.name.clone(),
