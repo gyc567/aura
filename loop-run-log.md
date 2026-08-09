@@ -555,3 +555,27 @@ Append one entry per run. Prune entries older than 30 days.
   "next": "M1 compaction write-back to session; M2 scratchpad concurrency; push + observe Actions"
 }
 ```
+
+```json
+{
+  "run_id": "2026-08-09T17:30:00Z",
+  "pattern": "commit-and-push (goal-mode: loop engineering closeout)",
+  "duration_s": 600,
+  "items_found": 2,
+  "actions_taken": 2,
+  "escalations": 0,
+  "tokens_estimate": 10000,
+  "outcome": "fix-proposed",
+  "commits": [
+    "c4e1414 feat: config file support + CI release automation + Phase 7 continuation (27 files)",
+    "d8c4408 docs: README install/config sections, audit report, loop state (7 files)"
+  ],
+  "pushed": "fa4bb82..d8c4408 main -> origin/main",
+  "worklog": "STATE.md 新增 Work Log 完整/未完整清单：6 项完整交付、9 项未完整（M1/M2/M3、真实 CI、真实模型 E2E、Phase 5 剩余、bench submit、低危清理）",
+  "quality_gates": {
+    "workspace_clean": "PASS (git status empty after push)",
+    "tests_before_push": "PASS (356 tests)"
+  },
+  "next": "M1 compaction write-back; M2 scratchpad concurrency; observe Actions first run"
+}
+```

@@ -51,5 +51,31 @@ Last run: 2026-08-09T17:00Z (Full audit of uncommitted changes; 3H+4M+3S finding
 - Phase 5 revisit: mock HTTP server for `complete()` coverage
 - cargo audit (network unavailable)
 
+## Work Log — 完整 / 未完整（2026-08-09 push 后）
+
+### ✅ 完整（已提交并推送，c4e1414 + d8c4408）
+
+| 工作 | 交付物 |
+|------|--------|
+| MVP：可安装可运行 | bin 统一 `aura`；`cargo install --path .` 验证；fake-model JSON/文本端到端 exit 0；README 补全 |
+| 配置文件支持 | `~/.config/aura/config.toml`（AURA_CONFIG/XDG 覆盖），优先级 CLI>config>env，坏配置 fail fast；10 测试 |
+| CI/CD release 自动化 | 5 平台原生矩阵 + tar.gz/zip 打包（含资源）+ tag 触发 draft release + install.sh |
+| 安装脚本 | 平台/架构检测、curl `--` 下载、AURA_SHA256 校验、PATH 提示、`--version` 自验；本地端到端实测通过 |
+| 全面审计 + 修复 | 3 高危 + 3 安全 + 1 中危 + 审计自发现 3 bug（H4-H6），全部修复并复验，报告见 docs/audit-2026-08-09.md |
+| 质量门 | 356 tests / fmt / clippy 全绿 |
+
+### ⏳ 未完整（下一轮 / 需要人工）
+
+| 项 | 状态 | 备注 |
+|----|------|------|
+| M1 压缩写回 session | 建议 | 系统消息二次压缩后丢失；超阈值每轮重复压缩（agent.rs:131-147） |
+| M2 scratchpad 并发 | 建议 | 主 agent + subagent 读-改-写非原子，persist 全量覆盖丢更新 |
+| M3 resume model 元数据 | 建议 | `Session::resume(args.model)` 与 choose_model 实际值不一致 |
+| 真实 CI 首跑 | 需人工 | Linux ARM64 runner / Windows zip / publish 链路只能真 Actions 验证 |
+| 真实模型 E2E | 需 API key | 凭据管理器取；含 `aura bench run` 全量 |
+| Phase 5 剩余 9% | 待拍板 | cli.rs Clap derive / model_http mock / main.rs helpers |
+| bench submit / Docker sandbox | 未来 | v1.2 剩余项 |
+| 低危清理 | 可选 | permissions 最小化、rust-toolchain pin、HttpConfig Debug 打码、provider body 截断、config 0600、gh release 重复 tag |
+
 ---
 ---
