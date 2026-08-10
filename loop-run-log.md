@@ -117,6 +117,47 @@ Append one entry per run. Prune entries older than 30 days.
 
 ```json
 {
+  "run_id": "2026-08-10T03:30:00Z",
+  "pattern": "design-implementor (L2: provider-onboarding slice 1, user-authorized 'go on')",
+  "duration_s": 1800,
+  "items_found": 1,
+  "actions_taken": 5,
+  "escalations": 0,
+  "tokens_estimate": 12000,
+  "outcome": "fix-proposed",
+  "l2_enable_note": "L2 was effectively running (subagent/config/release/publish all L2 work) without formal checklist; this run records the transition explicitly. Outstanding debt: docs/loop-design-checklist.md does not exist; recorded as watch item.",
+  "fixes": [
+    "src/setup/mod.rs: needs_onboarding() always false (slice-1 contract) + run_wizard() returns NotImplemented + 2 unit tests (slice-1 contract: false + NotImplemented, not panic)",
+    "src/cli.rs: CliCommand::Setup(SetupCli) variant + SetupCli + SetupCommand::Wizard (slice-1 minimum surface)",
+    "src/main.rs: route aura setup -> setup::run_wizard(); refactored run_bench signature from &CliCommand to &BenchCli; updated 'missing INSTRUCTION' error to suggest 'aura setup'",
+    "src/error.rs: added AgentError::NotImplemented(String) variant + restored missing #[must_use] on exit_code() + restored doc comment (one of the 5 clippy doc-markdown fixes)",
+    "src/lib.rs: pub mod setup;"
+  ],
+  "files_created": ["src/setup/mod.rs"],
+  "files_modified": ["src/cli.rs", "src/error.rs", "src/lib.rs", "src/main.rs"],
+  "commit": "ad27c87 feat(setup): slice 1 — module skeleton + 'aura setup' subcommand stub",
+  "push_status": "NOT PUSHED — loop-constraints 'push & merge: don't push before telling me' — user must authorize",
+  "tests_total": 399,
+  "tests_new": 2,
+  "tests_failed": 0,
+  "clippy_warnings": 0,
+  "quality_gates": {
+    "cargo_fmt_check": "PASS",
+    "cargo_clippy": "PASS (0 warnings on --all-targets -D warnings)",
+    "cargo_test": "PASS (399 tests, +2 setup unit tests)"
+  },
+  "smoke_tests": {
+    "aura --version": "aura 0.1.0 (no regression)",
+    "aura setup": "enters subcommand (clap help), no panics",
+    "aura (no args)": "clean error: 'missing INSTRUCTION: provide a task, run `aura setup`, or use `aura bench --help`'"
+  },
+  "next": "await user push decision (commit ad27c87); on green: enter slice 1.5 (ratatui skeleton — add ratatui 0.30 to Cargo.toml, create setup::tui/{mod,app,ui,event,theme}.rs empty stubs + TestBackend smoke test)"
+}
+```
+
+
+```json
+{
   "run_id": "2026-08-10T00:45:00Z",
   "pattern": "release-pipeline-unblock (runner + flatten + draft)",
   "duration_s": 2400,

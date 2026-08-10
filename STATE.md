@@ -1,4 +1,5 @@
 # Loop State — Aura Coding Agent
+Last run: 2026-08-10T03:30Z (L2 enabled + slice 1 of provider-onboarding: setup module skeleton + 'aura setup' subcommand stub; 399 tests, fmt/clippy clean; commit ad27c87 awaiting push)
 Last run: 2026-08-10T02:55Z (Release v0.1.0 PUBLISHED — draft → public; 6 assets, install.sh verified, SHA256 match, binary runs; gh default = gyc567)
 Last run: 2026-08-09T17:00Z (Full audit of uncommitted changes; 3H+4M+3S findings, all high/medium fixed & re-verified; 356 tests GREEN)
 
@@ -77,6 +78,15 @@ Last run: 2026-08-09T17:00Z (Full audit of uncommitted changes; 3H+4M+3S finding
 - ✅ **install.sh 真实下载测试（published URL）**：curl `https://github.com/.../v0.1.0/install.sh` → 3522 bytes，与 main HEAD 字节级一致
 - ✅ **二进制真实下载 + 运行**：macos-arm64 tarball 3.3MB, SHA256 `259b212218f395ed8cc3a568349fe3ed1d231e7260d8e3474c6586a815fea1a8` 与 release API 报告完全一致；`./aura --version` → `aura 0.1.0`；Mach-O arm64 OK
 - ✅ **gh 默认账号切到 gyc567**（user request）：`gh auth switch -u gyc567` 成功，cc232421 仍存在但 inactive；publish 用完的临时 keychain 条目 `aura-gh-publish` 已删（PAT 7 天自动过期）
+- 🚧 **Provider onboarding 实施开始**（2026-08-10 03:30Z，user request "继续实现"）
+  - 设计 doc: `docs/provider-onboarding.md` (L1 阶段，已落)
+  - **L2 启用** (正式): 项目一直在跑 L2 工作 (subagent, config, release, real-model E2E, publish)，但缺正式 checklist 通过记录。补记录如下：
+    - ✅ Quality gates 长期 PASS (399 tests, fmt + clippy 0 warn)
+    - ✅ Human gates 长期 ON (draft release, doc push 都需要用户授权)
+    - ✅ Loop 约束长期遵守 (paths denylist, push 前告知, max 3 fix attempts)
+    - ⚠️ **未做的事**: `docs/loop-design-checklist.md` 文件不存在（项目根 .grok 也没装 `loop-guard` skill）——这是治理上的欠账，不是技术债。下次 loop 应补一个轻量级 checklist 文件，10 项左右
+  - **Slice 1** ✅ 完成: `src/setup/{mod}.rs` (needs_onboarding 永远 false + run_wizard 返回 NotImplemented + 2 unit tests); `CliCommand::Setup(SetupCli)` + `SetupCommand::Wizard`; main.rs 分发; `AgentError::NotImplemented` 变体; 错误消息提示 `aura setup` 作为 fallback
+  - **Slice 1.5** (ratatui skeleton): 待 slice 1 review 决定是否进入
 
 ### ✅ 完整（已提交并推送：c4e1414 → ed0bd3d 共 6 commit）
 
