@@ -1,5 +1,5 @@
 # Loop State — Aura Coding Agent
-Last run: 2026-08-10T02:40Z (Correction: retracted false flaky-test claim; only remaining actionable item is publish draft v0.1.0 human gate. 397 tests / fmt / clippy still green.)
+Last run: 2026-08-10T02:55Z (Release v0.1.0 PUBLISHED — draft → public; 6 assets, install.sh verified, SHA256 match, binary runs; gh default = gyc567)
 Last run: 2026-08-09T17:00Z (Full audit of uncommitted changes; 3H+4M+3S findings, all high/medium fixed & re-verified; 356 tests GREEN)
 
 ## High Priority
@@ -73,9 +73,10 @@ Last run: 2026-08-09T17:00Z (Full audit of uncommitted changes; 3H+4M+3S finding
 - ~~subagent inbox 消费~~ ✅ 完成（2026-08-09 第六轮）：`ChildInbox` + `run_with_session` 每轮注入；+3 测试
 - ~~macos-x64 runner 排队~~ ✅ 解决（2026-08-10 第七轮）：macos-13 → macos-latest 交叉编译 x86_64-apple-darwin，1m47s 构建完成
 - ~~publish flatten 撞名~~ ✅ 修复（staging 目录扁平化）
-- **Release v0.1.0 pipeline 全绿**：tag run 31344671833 success，draft release 已创建（5 平台资产 + install.sh；workflow 日志证实，本地 API token pull-only 看不到 draft）
-- ✅ **install.sh 真实下载测试**：上一轮已通过本地全逻辑 E2E（正+负向），发布为人工 gate 不在本 loop 自动处理范围
-- ❌ **撤回"Flaky test infra"假说**（2026-08-10 02:30Z 第二轮复查）：原归因 `tempdir()` nanos 撞车不成立 ——（1）用同全局 seed 强制 5 个并行 test 复现 10 次全过，macOS SystemTime nanos 在并行 thread 间实际有纳秒级唯一性；（2）20 次 `cargo test --test context --test-threads=16` 0 复现 panic；（3）15 次中 2 次 `error: test failed` 实为 cargo 自身构建竞争，与测试代码无关。`Os{code:22, InvalidInput}` 真实根因待查（最可能 macOS `std::env::temp_dir()` 在 cargo 状态异常时返回非法路径，或外部 shell IO 错误被 libtest stack 误报）。Watch 不再跟踪，除非再次可稳定复现
+- ✅ **Release v0.1.0 PUBLISHED**（2026-08-10 02:55Z）：draft → public via gh API PATCH (`draft=false` + body 1353 bytes); release id 367623547; URL https://github.com/gyc567/aura/releases/tag/v0.1.0; 6 assets (5 platforms + install.sh, 17.6MB total)
+- ✅ **install.sh 真实下载测试（published URL）**：curl `https://github.com/.../v0.1.0/install.sh` → 3522 bytes，与 main HEAD 字节级一致
+- ✅ **二进制真实下载 + 运行**：macos-arm64 tarball 3.3MB, SHA256 `259b212218f395ed8cc3a568349fe3ed1d231e7260d8e3474c6586a815fea1a8` 与 release API 报告完全一致；`./aura --version` → `aura 0.1.0`；Mach-O arm64 OK
+- ✅ **gh 默认账号切到 gyc567**（user request）：`gh auth switch -u gyc567` 成功，cc232421 仍存在但 inactive；publish 用完的临时 keychain 条目 `aura-gh-publish` 已删（PAT 7 天自动过期）
 
 ### ✅ 完整（已提交并推送：c4e1414 → ed0bd3d 共 6 commit）
 

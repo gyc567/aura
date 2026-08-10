@@ -76,6 +76,47 @@ Append one entry per run. Prune entries older than 30 days.
 
 ```json
 {
+  "run_id": "2026-08-10T02:55:00Z",
+  "pattern": "human-authorized publish (v0.1.0 draft → public)",
+  "duration_s": 600,
+  "items_found": 1,
+  "actions_taken": 7,
+  "escalations": 0,
+  "tokens_estimate": 6000,
+  "outcome": "fix-proposed",
+  "action": {
+    "user_choice": "Plan B + default=gyc567 (from explicit user message)",
+    "publish_method": "GitHub API PATCH /repos/gyc567/aura/releases/367623547 body={draft:false, body:<notes>}",
+    "release_id": 367623547,
+    "tag": "v0.1.0",
+    "url": "https://github.com/gyc567/aura/releases/tag/v0.1.0",
+    "assets_count": 6,
+    "body_bytes": 1353
+  },
+  "credential_lifecycle": {
+    "pat_source": "user-provided ghp_*** (7-day expiry, scope: repo)",
+    "keychain_storage": "service=aura-gh-publish, account=gyc567 (deleted after use)",
+    "gh_auth_persistence": "gh auth login --with-token + gh auth switch -u gyc567; cc232421 kept as inactive, gyc567 now default",
+    "files_wiped": ["/tmp/aura-publish-verify/", "/tmp/aura-v0.1.0-notes.md"],
+    "credential_in_git": false,
+    "credential_in_logs": false
+  },
+  "verification": {
+    "install_sh_download": "curl -sSLf https://github.com/gyc567/aura/releases/download/v0.1.0/install.sh -> 3522 bytes; byte-identical to main HEAD install.sh (verified via diff)",
+    "macos_arm64_download": "3.3MB tarball, SHA256 matches release assets API digest 259b212218f395ed8cc3a568349fe3ed1d231e7260d8e3474c6586a815fea1a8",
+    "binary_execution": "./aura --version -> 'aura 0.1.0'; file -> 'Mach-O 64-bit executable arm64'",
+    "gh_default_post": "gh auth status shows gyc567 as active, cc232421 as inactive (both still keychain-resident)"
+  },
+  "files_modified": ["STATE.md", "loop-run-log.md"],
+  "tests_total": 397,
+  "tests_failed": 0,
+  "next": "next triage (24h) — observe install.sh real-world download traffic (none expected immediately, no monitoring); watch for issues opened by users; flaky-test watch item remains retracted"
+}
+```
+
+
+```json
+{
   "run_id": "2026-08-10T00:45:00Z",
   "pattern": "release-pipeline-unblock (runner + flatten + draft)",
   "duration_s": 2400,
