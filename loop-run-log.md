@@ -222,6 +222,49 @@ Append one entry per run. Prune entries older than 30 days.
 }
 ```
 
+
+```json
+{
+  "run_id": "2026-08-10T05:30:00Z",
+  "pattern": "design-implementor (L2: provider-onboarding slice 3, TUI picker + keychain)",
+  "duration_s": 2700,
+  "items_found": 0,
+  "actions_taken": 9,
+  "escalations": 0,
+  "tokens_estimate": 14000,
+  "outcome": "fix-proposed",
+  "fixes": [
+    "keychain.rs: save/load/delete via keyring 3.6 (macOS keychain/Linux secret-service/wincred); 7 tests with keyring mock (EntryOnly persistence — roundtrip is manual E2E)",
+    "config_write.rs: atomic (tmp+rename) config.toml write with endpoint/model/provider, 0600 perms, NO api_key in file; 5 tests",
+    "tui/app.rs: Elm state machine PickProvider->EnterApiKey->Saving->Done/Error + masked input buffer; 12 tests",
+    "tui/ui.rs: pure render per state; TestBackend verifies masked input (plain chars never reach buffer — key security property); 5 tests",
+    "tui/event.rs: crossterm KeyEvent->Message (1-4, chars, backspace, enter, esc, ctrl-u); 7 tests",
+    "tui/theme.rs: primary/accent/success/error styles",
+    "setup/mod.rs: run_wizard() real event loop via ratatui::init()/restore() + non-TTY fallback (design 6.5); commit = keychain + config_write",
+    "Cargo.toml: +keyring 3.6 (MSRV 1.75 <= project 1.85), +crossterm 0.28",
+    "caught 9 clippy pedantic issues in this slice (by-ref error mapping, collapsed match arms, let-else, or-pattern merge, truncate cast, doc backticks) — all fixed"
+  ],
+  "files_created": ["src/setup/keychain.rs", "src/setup/config_write.rs"],
+  "files_modified": ["Cargo.toml", "Cargo.lock", "src/setup/mod.rs", "src/setup/tui/app.rs", "src/setup/tui/ui.rs", "src/setup/tui/event.rs", "src/setup/tui/theme.rs"],
+  "commit": "be6a7d7 feat(setup): slice 3 — TUI provider picker + API key input + keychain/config save",
+  "push_status": "NOT PUSHED — slice 3 commit awaits user decision",
+  "tests_total": 449,
+  "tests_new": 37,
+  "tests_failed": 0,
+  "quality_gates": {
+    "cargo_fmt_check": "PASS",
+    "cargo_clippy": "PASS (0 warnings on --all-targets -D warnings)",
+    "cargo_test": "PASS (449 tests, +37: keychain 7 + config_write 5 + app 12 + ui 5 + event 7 + wizard flow 1)"
+  },
+  "smoke_tests": {
+    "aura setup wizard (non-TTY)": "clean error: 'no TTY detected: run aura setup interactively...' — design 6.5 verified",
+    "aura --version": "aura 0.1.0 (no regression)",
+    "aura (no args)": "original missing-INSTRUCTION error (unchanged)"
+  },
+  "next": "user push decision; then slice 3 E2E (needs real DeepSeek key from user) — verify keychain roundtrip + interactive TUI; after that slice 4 (key probe) + slice 5 (aura no-args trigger)"
+}
+```
+
 ```json
 {
   "run_id": "2026-08-10T00:45:00Z",
