@@ -1,5 +1,5 @@
 # Loop State — Aura Coding Agent
-Last run: 2026-08-10T05:30Z (Slice 3 done: TUI picker + masked key input + keychain/config save; 449 tests green; commit be6a7d7; E2E needs real DeepSeek/MiniMax/Kimi key)
+Last run: 2026-08-10T06:00Z (Slice 3 done + MSRV fix: ratatui 0.30.2→0.29.0 (0.30 needs rustc 1.88 > MSRV 1.85, CI 5-platform build failed); 449 tests green; commit a4aa8d0; CI re-verifying; E2E needs real key)
 Last run: 2026-08-10T03:30Z (L2 enabled + slice 1 of provider-onboarding: setup module skeleton + 'aura setup' subcommand stub; 399 tests, fmt/clippy clean; commit ad27c87 awaiting push)
 Last run: 2026-08-10T02:55Z (Release v0.1.0 PUBLISHED — draft → public; 6 assets, install.sh verified, SHA256 match, binary runs; gh default = gyc567)
 Last run: 2026-08-09T17:00Z (Full audit of uncommitted changes; 3H+4M+3S findings, all high/medium fixed & re-verified; 356 tests GREEN)
@@ -91,6 +91,7 @@ Last run: 2026-08-09T17:00Z (Full audit of uncommitted changes; 3H+4M+3S finding
   - **Slice 2** ✅ 完成: `src/setup/providers.toml` (4 providers) + `src/setup/providers.rs` (all/lookup/default_for_id/validate_invariants + 11 tests); 412 tests green; ⚠️ 发现设计 doc §1 表格 endpoint 写错 (带 /v1)，toml 用 base URL — slice 6 更新文档时改
   - **Slice 3** ✅ 完成: `keychain.rs` (keyring save/load/delete, 7 tests) + `config_write.rs` (atomic 0600, 5 tests) + `tui/app.rs` 状态机 (12 tests) + `tui/ui.rs` masked render (5 tests, 明文不泄漏已验证) + `tui/event.rs` (7 tests) + `tui/theme.rs`; `run_wizard` 真实事件循环 + non-TTY fallback; 449 tests green
   - **Slice 3 E2E** ⏳ 待做: 需要用户提供真实 DeepSeek/MiniMax/Kimi key 测 keychain roundtrip + TUI 交互
+  - ⚠️ **MSRV 陷阱**（2026-08-10 06:00Z 捕获）: ratatui 0.30.2 需要 rustc 1.88，项目 MSRV 1.85 → CI 5 平台 build 全挂（本地 1.95 看不出来）。降级 0.29.0 (rust-version 1.74) 修复。教训: 本地 rustc 高于 MSRV 时，新增依赖必须查 `cargo info <crate>` 的 rust-version 或依赖 CI 5 平台矩阵
 
 ### ✅ 完整（已提交并推送：c4e1414 → ed0bd3d 共 6 commit）
 

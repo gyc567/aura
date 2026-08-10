@@ -265,6 +265,37 @@ Append one entry per run. Prune entries older than 30 days.
 }
 ```
 
+
+```json
+{
+  "run_id": "2026-08-10T06:00:00Z",
+  "pattern": "ci-fix (MSRV 1.85 vs ratatui 0.30.2 rustc 1.88)",
+  "duration_s": 600,
+  "items_found": 1,
+  "actions_taken": 1,
+  "escalations": 0,
+  "tokens_estimate": 3000,
+  "outcome": "fix-proposed",
+  "fixes": [
+    "CI 5-platform build failed after slice 3 push: ratatui 0.30.2 requires rustc 1.88, release.yml pins toolchain 1.85 (project MSRV). Local rustc 1.95 masked the problem.",
+    "Downgraded ratatui 0.30.2 -> 0.29.0 (rust-version 1.74); Cargo.lock drops time 0.3.55 + wezterm deps (-963 lines)",
+    "API surface compatible (init()/DefaultTerminal/Frame<'_> all in 0.29); 449 tests / fmt / clippy green locally",
+    "LESSON: when adding a dep while local rustc > MSRV, verify `cargo info <crate>` rust-version <= project MSRV, or rely on CI 5-platform matrix (it caught it in ~1 min)"
+  ],
+  "files_modified": ["Cargo.toml", "Cargo.lock"],
+  "commit": "a4aa8d0 fix(setup): ratatui 0.30.2 -> 0.29.0 (MSRV 1.85 compat, 5-platform CI)",
+  "push_status": "PUSHED (a4aa8d0) — CI re-running on 1.85",
+  "tests_total": 449,
+  "tests_failed": 0,
+  "quality_gates": {
+    "cargo_fmt_check": "PASS",
+    "cargo_clippy": "PASS (0 warnings)",
+    "cargo_test": "PASS (449 tests)"
+  },
+  "next": "confirm CI 5-platform green on 1.85; then slice 3 E2E (user-provided DeepSeek key)"
+}
+```
+
 ```json
 {
   "run_id": "2026-08-10T00:45:00Z",
