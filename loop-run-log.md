@@ -188,6 +188,40 @@ Append one entry per run. Prune entries older than 30 days.
 }
 ```
 
+
+```json
+{
+  "run_id": "2026-08-10T04:30:00Z",
+  "pattern": "design-implementor (L2: provider-onboarding slice 2, provider catalog)",
+  "duration_s": 900,
+  "items_found": 1,
+  "actions_taken": 5,
+  "escalations": 0,
+  "tokens_estimate": 6000,
+  "outcome": "fix-proposed",
+  "fixes": [
+    "src/setup/providers.toml: 4 built-in providers (deepseek/minimax/kimi/custom) — display_name, endpoint (base URL, no /v1), default_model, env_var, keychain_service, extra_models",
+    "src/setup/providers.rs: Provider struct, Catalog via include_str! + LazyLock, all()/lookup(id)/default_for_id(id)/validate_invariants()",
+    "setup/mod.rs: pub mod providers;",
+    "caught real mismatch: design doc §1 table wrote endpoints WITH /v1 but HttpConfig::url() appends /v1/chat/completions — toml uses base URLs; endpoints_are_base_urls_not_paths test guards this; doc fix deferred to slice 6",
+    "followed rs-lazylock rule: std::sync::LazyLock over OnceLock for compile-time-known initializer"
+  ],
+  "files_created": ["src/setup/providers.toml", "src/setup/providers.rs"],
+  "files_modified": ["src/setup/mod.rs"],
+  "commit": "a422d6f feat(setup): slice 2 — provider catalog (providers.toml + setup::providers)",
+  "push_status": "NOT PUSHED — slice 2 commit awaits user decision (slices 1+1.5+docs already pushed 928cebd..37897bc)",
+  "tests_total": 412,
+  "tests_new": 11,
+  "tests_failed": 0,
+  "quality_gates": {
+    "cargo_fmt_check": "PASS",
+    "cargo_clippy": "PASS (0 warnings on --all-targets -D warnings)",
+    "cargo_test": "PASS (412 tests, +11 providers)"
+  },
+  "next": "user push decision for a422d6f; on green: enter slice 3 (TUI provider picker + keychain write for DeepSeek — first user-visible change, needs a real DeepSeek key to test)"
+}
+```
+
 ```json
 {
   "run_id": "2026-08-10T00:45:00Z",

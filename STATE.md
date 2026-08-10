@@ -1,5 +1,5 @@
 # Loop State — Aura Coding Agent
-Last run: 2026-08-10T04:00Z (Slice 1.5 done: ratatui 0.30 skeleton + 5 tui stub modules + 2 new tests; 401 tests green; commit f015bf9; cross-platform compile verified locally, CI will exercise 5-platform matrix)
+Last run: 2026-08-10T04:30Z (Slice 2 done: provider catalog — providers.toml + setup::providers (lookup/default_for_id/invariants), 4 providers incl. custom; 412 tests green; commit a422d6f; pushed slices 1+1.5+docs)
 Last run: 2026-08-10T03:30Z (L2 enabled + slice 1 of provider-onboarding: setup module skeleton + 'aura setup' subcommand stub; 399 tests, fmt/clippy clean; commit ad27c87 awaiting push)
 Last run: 2026-08-10T02:55Z (Release v0.1.0 PUBLISHED — draft → public; 6 assets, install.sh verified, SHA256 match, binary runs; gh default = gyc567)
 Last run: 2026-08-09T17:00Z (Full audit of uncommitted changes; 3H+4M+3S findings, all high/medium fixed & re-verified; 356 tests GREEN)
@@ -88,6 +88,7 @@ Last run: 2026-08-09T17:00Z (Full audit of uncommitted changes; 3H+4M+3S finding
     - ⚠️ **未做的事**: `docs/loop-design-checklist.md` 文件不存在（项目根 .grok 也没装 `loop-guard` skill）——这是治理上的欠账，不是技术债。下次 loop 应补一个轻量级 checklist 文件，10 项左右
   - **Slice 1** ✅ 完成: `src/setup/{mod}.rs` (needs_onboarding 永远 false + run_wizard 返回 NotImplemented + 2 unit tests); `CliCommand::Setup(SetupCli)` + `SetupCommand::Wizard`; main.rs 分发; `AgentError::NotImplemented` 变体; 错误消息提示 `aura setup` 作为 fallback
   - **Slice 1.5** ✅ 完成: `ratatui 0.30` 加到 Cargo.toml; `src/setup/tui/{mod,app,ui,event,theme}.rs` 5 个 stub; 2 new tests (`tui_renders_empty_frame` + `tui_app_new_is_constructable`); 401 tests green; ratatui 跨平台编译在 CI 5 矩阵会被验证
+  - **Slice 2** ✅ 完成: `src/setup/providers.toml` (4 providers) + `src/setup/providers.rs` (all/lookup/default_for_id/validate_invariants + 11 tests); 412 tests green; ⚠️ 发现设计 doc §1 表格 endpoint 写错 (带 /v1)，toml 用 base URL — slice 6 更新文档时改
 
 ### ✅ 完整（已提交并推送：c4e1414 → ed0bd3d 共 6 commit）
 
