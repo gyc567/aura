@@ -155,6 +155,38 @@ Append one entry per run. Prune entries older than 30 days.
 }
 ```
 
+```json
+{
+  "run_id": "2026-08-10T04:00:00Z",
+  "pattern": "design-implementor (L2: provider-onboarding slice 1.5, ratatui skeleton)",
+  "duration_s": 1200,
+  "items_found": 0,
+  "actions_taken": 4,
+  "escalations": 0,
+  "tokens_estimate": 8000,
+  "outcome": "fix-proposed",
+  "fixes": [
+    "Cargo.toml: ratatui = '0.30' (default crossterm backend)",
+    "src/setup/tui/{mod,app,ui,event,theme}.rs: 5 empty module skeletons — mod.rs has run() stub returning NotImplemented; app.rs has App struct + new() + Default; ui.rs has render_smoke() with TestBackend 80x24; event.rs + theme.rs intentionally empty (slice 3 fills)",
+    "src/setup/mod.rs: pub mod tui; + 2 new tests (tui_renders_empty_frame + tui_app_new_is_constructable)",
+    "ratatui 0.30.2 build verified locally (MSRV 1.85 > ratatui's 1.74); cross-platform compile will be exercised in CI 5-platform matrix"
+  ],
+  "files_created": ["src/setup/tui/mod.rs", "src/setup/tui/app.rs", "src/setup/tui/ui.rs", "src/setup/tui/event.rs", "src/setup/tui/theme.rs"],
+  "files_modified": ["Cargo.toml", "Cargo.lock", "src/setup/mod.rs"],
+  "commit": "f015bf9 feat(setup): slice 1.5 — ratatui skeleton + 5 empty tui modules",
+  "push_status": "NOT PUSHED — awaiting user decision on slice 1.5 + push 928cebd/f015bf9 + 2 docs commits in one batch",
+  "tests_total": 401,
+  "tests_new": 2,
+  "tests_failed": 0,
+  "quality_gates": {
+    "cargo_fmt_check": "PASS",
+    "cargo_clippy": "PASS (0 warnings on --all-targets -D warnings)",
+    "cargo_test": "PASS (401 tests, +2 tui smoke tests)"
+  },
+  "ratatui_version": "0.30.2 (latest stable; MSRV 1.74, project MSRV 1.85 = compatible)",
+  "next": "user push decision for slice 1 + 1.5; on green: enter slice 2 (provider catalog — providers.toml + setup::providers module)"
+}
+```
 
 ```json
 {
