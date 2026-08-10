@@ -62,7 +62,9 @@ jobs:
             artifact: aura-linux-arm64.tar.gz
 
           - job: macos-x64
-            runner: macos-13
+            # macos-13 (Intel) 在 GitHub 长期排队；改用 macos-latest (Apple Silicon) 交叉编译
+            # x86_64-apple-darwin —— 目标架构产物不变，只是构建主机不同。
+            runner: macos-latest
             target: x86_64-apple-darwin
             artifact: aura-macos-x64.tar.gz
 
@@ -83,6 +85,8 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: "1.85"
+          # 显式安装目标（macos-x64 在 arm64 主机上构建需要 x86_64-apple-darwin target）
+          targets: ${{ matrix.target }}
 
       - name: Build
         run: cargo build --release --target ${{ matrix.target }}
