@@ -24,6 +24,58 @@ Append one entry per run. Prune entries older than 30 days.
 
 ```json
 {
+  "run_id": "2026-08-10T02:24:50Z",
+  "pattern": "daily-triage (L1 report-only)",
+  "duration_s": 300,
+  "items_found": 3,
+  "actions_taken": 0,
+  "escalations": 1,
+  "tokens_estimate": 8000,
+  "outcome": "report-only",
+  "signals": {
+    "ci_recent": "2 release runs success (main push 00:41Z, tag v0.1.0 push 00:31Z); flatten fix landed; macos-x64 cross-build 1m47s",
+    "open_prs": 1,
+    "open_pr_state": "MERGED (PR #1, audit-fixes 2026-08-08)",
+    "open_issues": 0,
+    "draft_release_v0.1.0": "exists (5 platform assets + install.sh); pull-only gh token cannot view drafts — verified via workflow log only",
+    "local_quality": "fmt PASS, clippy 0 warn, 397 tests pass (0 fail, parallel); 13/13 context tests single-thread PASS"
+  },
+  "watch_items": [
+    "tests/context.rs::tempdir() nanos collision under parallel cargo test: occasional InvalidInput panic in collect_workspace_files_refuses_sensitive_path; single-thread 397/0; flaky, low-risk, fix = tempfile::tempdir() or PID+nanos mix. L1 did not auto-fix.",
+    "Human gate still open: publish draft v0.1.0 (irreversible, public; requires write token or user action)"
+  ],
+  "no_action_taken_reason": "L1 report-only mode (LOOP.md): no auto-fix until L2 checklist complete; current items are either human-gated (publish release) or low-risk infra (flaky test) — neither warrants L2 escalation in a single L1 triage pass.",
+  "next": "next triage (24h cadence) — re-check draft publish state; if still unpublished after user decision, drop to noise; flaky test watch item will repeat until fixed or until user explicitly asks to handle it"
+}
+```
+
+
+```json
+{
+  "run_id": "2026-08-10T02:30:00Z",
+  "pattern": "correction (retract previous triage finding)",
+  "duration_s": 600,
+  "items_found": 0,
+  "actions_taken": 1,
+  "escalations": 0,
+  "tokens_estimate": 4000,
+  "outcome": "no-op",
+  "correction": {
+    "previous_run_id": "2026-08-10T02:24:50Z",
+    "previous_claim": "tests/context.rs::tempdir() nanos collision causes InvalidInput panic in collect_workspace_files_refuses_sensitive_path",
+    "reproduction_attempts": "20x cargo test --test context --test-threads=16 (0 fail); 5x repro binary with shared global AtomicU64 seed forcing 5 threads on 5 distinct seeds (10 runs, 0 fail); deleted repro file",
+    "verdict": "claim retracted — macOS SystemTime nanos has nanosecond uniqueness across parallel threads; the 1 observed failure was likely cargo build state, not the test code. STATE.md watch item replaced with explicit retraction."
+  },
+  "files_modified": ["STATE.md"],
+  "tests_total": 397,
+  "tests_failed": 0,
+  "quality_gates": {"cargo_fmt_check": "PASS", "cargo_clippy": "PASS (0 warn)", "cargo_test": "PASS (397 tests)"}
+}
+```
+
+
+```json
+{
   "run_id": "2026-08-10T00:45:00Z",
   "pattern": "release-pipeline-unblock (runner + flatten + draft)",
   "duration_s": 2400,
