@@ -13,6 +13,7 @@ use std::process::ExitCode;
 
 use crate::error::AgentError;
 
+pub mod providers;
 pub mod tui;
 
 /// 当前是否需要进入 onboarding 向导。

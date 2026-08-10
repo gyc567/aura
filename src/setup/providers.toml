@@ -1,0 +1,50 @@
+# Aura 内置 provider catalog（slice 2）。
+#
+# 编译期通过 include_str! 嵌入二进制（见 src/setup/providers.rs）。
+# 每个 provider 是 OpenAI-compatible chat completion 端点。
+# 添加 provider = 在这个文件加一节 + providers.rs 无需改动。
+#
+# 字段：
+# - id              唯一标识（config.toml 的 provider 字段值）
+# - display_name    TUI 显示名
+# - endpoint        OpenAI-compatible base URL（注意末尾无 /v1 —— model_http 会拼）
+# - default_model   默认模型名
+# - env_var         该 provider 的 API key 环境变量名
+# - keychain_service macOS keychain / Linux secret-service 条目名
+# - extra_models    供 TUI picker 展示的额外模型（可选）
+
+[[providers]]
+id = "deepseek"
+display_name = "DeepSeek"
+endpoint = "https://api.deepseek.com"
+default_model = "deepseek-chat"
+env_var = "DEEPSEEK_API_KEY"
+keychain_service = "aura-deepseek"
+extra_models = ["deepseek-reasoner"]
+
+[[providers]]
+id = "minimax"
+display_name = "MiniMax (海螺 AI)"
+endpoint = "https://api.minimaxi.com"
+default_model = "MiniMax-Text-01"
+env_var = "MINIMAX_API_KEY"
+keychain_service = "aura-minimax"
+extra_models = ["MiniMax-Text-01", "abab6.5s-chat"]
+
+[[providers]]
+id = "kimi"
+display_name = "Kimi (Moonshot)"
+endpoint = "https://api.moonshot.cn"
+default_model = "moonshot-v1-8k"
+env_var = "KIMI_API_KEY"
+keychain_service = "aura-kimi"
+extra_models = ["moonshot-v1-8k", "moonshot-v1-32k", "moonshot-v1-128k"]
+
+[[providers]]
+id = "custom"
+display_name = "Other (OpenAI-compatible)"
+endpoint = ""
+default_model = ""
+env_var = "AURA_API_KEY"
+keychain_service = "aura-custom"
+extra_models = []
