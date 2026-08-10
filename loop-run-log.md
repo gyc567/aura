@@ -24,6 +24,35 @@ Append one entry per run. Prune entries older than 30 days.
 
 ```json
 {
+  "run_id": "2026-08-10T07:30:00Z",
+  "pattern": "design-implementor (L1 report: archify architecture diagram)",
+  "duration_s": 600,
+  "items_found": 0,
+  "actions_taken": 3,
+  "escalations": 0,
+  "tokens_estimate": 4000,
+  "outcome": "fix-proposed",
+  "fixes": [
+    "Generated aura-architecture.json (Archify spec, 12 components, 5-layer architecture)",
+    "Validated with archify validate --quality showcase: 9/9 checks pass, 0 errors, 0 warnings",
+    "Delivered aura-architecture.html (615KB, interactive: pan/zoom/search/focus/theme)"
+  ],
+  "files_created": ["aura-architecture.json", "aura-architecture.html"],
+  "commit": "NOT YET — awaiting user push authorization (L1 report-only: human gate)",
+  "tests_total": 449,
+  "tests_failed": 0,
+  "quality_gates": {
+    "cargo_fmt_check": "PASS",
+    "cargo_clippy": "PASS (0 warnings)",
+    "cargo_test": "PASS (449 tests)"
+  },
+  "loop_note": "L1 mode: no auto-push; human reviews commit before push",
+  "next": "user authorization to push commit"
+}
+```
+
+```json
+{
   "run_id": "2026-08-10T02:24:50Z",
   "pattern": "daily-triage (L1 report-only)",
   "duration_s": 300,

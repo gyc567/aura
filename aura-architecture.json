@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Aura — Rust Coding Agent",
+    "subtitle": "5-layer KISS architecture: CLI → Session → Agent Loop → Capabilities → Model Gateway",
+    "quality_profile": "showcase"
+  },
+  "components": [
+    { "id": "cli", "type": "frontend", "label": "CLI (aura)", "sublabel": "--workspace --json --resume", "pos": [60, 40], "size": [150, 60] },
+    { "id": "bench", "type": "frontend", "label": "Bench Framework", "sublabel": "aura bench run/report/list/diff", "pos": [460, 40], "size": [200, 60] },
+    { "id": "session", "type": "backend", "label": "Session + Transcript", "sublabel": "JSONL, resumable", "pos": [60, 150], "size": [150, 60] },
+    { "id": "agent", "type": "backend", "label": "Agent Loop", "sublabel": "while(tool_use) + ErrorBudget", "pos": [280, 150], "size": [150, 60] },
+    { "id": "tools", "type": "backend", "label": "Tool Registry", "sublabel": "11 built-in tools", "pos": [510, 150], "size": [150, 60] },
+    { "id": "policy", "type": "security", "label": "Policy + Precheck", "sublabel": "capability gates + regex", "pos": [740, 150], "size": [150, 60] },
+    { "id": "compaction", "type": "backend", "label": "Compaction", "sublabel": "context summarization", "pos": [60, 290], "size": [150, 60] },
+    { "id": "children", "type": "backend", "label": "Children (RLM)", "sublabel": "subagent handles", "pos": [280, 290], "size": [150, 60] },
+    { "id": "model", "type": "backend", "label": "Model Gateway", "sublabel": "trait + adapter", "pos": [510, 290], "size": [150, 60] },
+    { "id": "plugin", "type": "backend", "label": "Plugin v2", "sublabel": "dynamic skill loading", "pos": [740, 290], "size": [150, 60] },
+    { "id": "context", "type": "backend", "label": "Context Engine", "sublabel": "workspace + sensitive path", "pos": [510, 440], "size": [150, 60] },
+    { "id": "model_http", "type": "external", "label": "OpenAI-compatible API", "sublabel": "HTTP/SSE streaming", "pos": [740, 440], "size": [150, 60] }
+  ],
+  "connections": [
+    { "id": "cli-to-session", "from": "cli", "to": "session" },
+    { "id": "bench-to-session", "from": "bench", "to": "session" },
+    { "id": "session-to-agent", "from": "session", "to": "agent" },
+    { "id": "agent-to-tools", "from": "agent", "to": "tools", "label": "dispatch", "labelDx": -16 },
+    { "id": "agent-to-children", "from": "agent", "to": "children", "label": "spawn", "labelAt": [355, 265], "fromSide": "bottom", "toSide": "top" },
+    { "id": "agent-to-compaction", "from": "agent", "to": "compaction", "label": "summarize", "labelDx": -16 },
+    { "id": "agent-to-model", "from": "agent", "to": "model", "label": "decide", "labelDy": 24, "fromSide": "bottom", "toSide": "top" },
+    { "id": "tools-to-policy", "from": "tools", "to": "policy", "label": "gate" },
+    { "id": "model-to-model_http", "from": "model", "to": "model_http", "label": "HTTP/SSE", "labelDx": -16 }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "L1 — Presentation", "wraps": ["cli", "bench"] },
+    { "kind": "region", "label": "L2 — Session", "wraps": ["session"] },
+    { "kind": "region", "label": "L3 — Execution Engine", "wraps": ["agent", "compaction", "children"] },
+    { "kind": "region", "label": "L4 — Capability Layer", "wraps": ["tools", "policy", "plugin"] },
+    { "kind": "region", "label": "L5 — Model Gateway", "wraps": ["model", "model_http"] },
+    { "kind": "region", "label": "Supporting", "wraps": ["context"] }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "Entry", "items": ["CLI: --workspace, --json, --resume flags", "Bench: run/report/init/list/diff seed tasks"] },
+    { "dot": "emerald", "title": "Session", "items": ["JSONL transcript with --resume support", "Compaction: summarization via fast model or rule fallback"] },
+    { "dot": "amber", "title": "Agent Loop", "items": ["while(tool_use) driven by Decision::Call", "Budget (turns) + ErrorBudget (3) prevent runaway", "RLM children: subagent / agent_message tools"] },
+    { "dot": "rose", "title": "Capabilities", "items": ["11 built-in tools: read/write/run/grep/find/list/todo/scratch/subagent", "Policy + Precheck: regex command-risk analysis + capability gates", "Plugin v2: dynamic skill loading via manifest"] },
+    { "dot": "violet", "title": "Model", "items": ["ModelGateway trait: any OpenAI-compatible provider", "HTTP/SSE transport: streaming responses", "--fake-model for deterministic CI testing"] }
+  ]
+}
