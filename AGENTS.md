@@ -1,5 +1,7 @@
 # AGENTS.md
 
+🌐 **Language / 语言**: [English](AGENTS.md) · [中文](AGENTS.zh.md)
+
 ## Test commands
 
 ```bash

@@ -1,5 +1,7 @@
 # Aura 插件系统设计规格（v2 候选）
 
+> 🌐 **Language / 语言**: [English](plugin-spec-v2.en.md) · [中文](plugin-spec-v2.md)
+
 - **版本**：v0.1 候选
 - **日期**：2026-08-07
 - **状态**：v2 候选规格，**未进入实现**

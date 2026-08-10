@@ -1,5 +1,7 @@
 # Provider Onboarding — Design Doc
 
+> 🌐 **Language / 语言**: [English](provider-onboarding.md) · [中文](provider-onboarding.zh.md)
+
 > Status: **Draft** (loop L1; not yet implemented)
 > Author: 2026-08-10 loop session
 > Reviewed: 2026-08-10 loop audit (this revision) — see "Audit delta" below

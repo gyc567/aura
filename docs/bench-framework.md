@@ -1,5 +1,7 @@
 # Aura Bench Framework — 评测框架设计
 
+> 🌐 **Language / 语言**: [English](bench-framework.en.md) · [中文](bench-framework.md)
+
 **版本**: v0.1
 **日期**: 2026-08-08
 **参考**: [Harbor Framework](https://www.harborframework.com) (Terminal-Bench 2.0 harness) + [tbench.ai](https://tbench.ai)

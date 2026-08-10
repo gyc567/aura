@@ -1,5 +1,7 @@
 # Credential Helper — GitHub HTTPS PAT in macOS Keychain
 
+> 🌐 **Language / 语言**: [English](credential-helper.md) · [中文](credential-helper.zh.md)
+
 ## Overview
 
 `scripts/add-github-credential.sh` adds a GitHub HTTPS Personal Access Token (PAT) to the macOS login keychain using the `security` command. After this, `git push https://github.com/...` works without manual password entry.

@@ -1,5 +1,7 @@
 # Rust 编码智能体完整设计方案（v0.5）
 
+> 🌐 **Language / 语言**: [English](coding-agent-design.en.md) · [中文](coding-agent-design.md)
+
 - **版本**：v0.5 设计稿（基于 v0.4 文档审计后的修复版）
 - **日期**：2026-08-07
 - **状态**：待评审；本文档与 Phase 1 baseline 代码（`src/`、`tests/`）**逐项对齐**

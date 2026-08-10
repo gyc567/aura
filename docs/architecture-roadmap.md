@@ -1,4 +1,6 @@
-# Aura 架构路线图(参考 prime-agent 的优化方案)
+# Aura 架构路线图（参考 prime-agent 的优化方案）
+
+> 🌐 **Language / 语言**: [English](architecture-roadmap.en.md) · [中文](architecture-roadmap.md)
 
 - **版本**:v0.6 候选
 - **日期**:2026-08-08
