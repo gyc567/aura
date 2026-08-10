@@ -13,6 +13,8 @@ use std::process::ExitCode;
 
 use crate::error::AgentError;
 
+pub mod tui;
+
 /// 当前是否需要进入 onboarding 向导。
 ///
 /// **slice 1 实现**：永远返回 `false`。
@@ -36,7 +38,6 @@ pub fn run_wizard() -> Result<ExitCode, AgentError> {
             .into(),
     ))
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -57,5 +58,20 @@ mod tests {
             matches!(err, AgentError::NotImplemented(_)),
             "expected NotImplemented, got {err:?}",
         );
+    }
+
+    /// slice 1.5 承诺: ratatui skeleton 在 `cargo test` 中能编译并 render 一个空 frame。
+    /// 这条 test 跑成功 = 跨平台 CI 五矩阵（linux/macOS/windows x64+arm64）能编译 ratatui。
+    /// 失败 = slice 1.5 没准备好，需先排查 MSRV / 后端兼容性问题再进 slice 3。
+    #[test]
+    fn tui_renders_empty_frame() {
+        tui::ui::render_smoke();
+    }
+
+    /// slice 1.5 承诺: `App` 默认构造可用（slice 3 状态机要在这个基础上扩展）。
+    #[test]
+    /// 切忌: 不要在这里访问私有字段 —— slice 3+ 会重写内部表示。
+    fn tui_app_new_is_constructable() {
+        let _app = tui::app::App::new();
     }
 }
