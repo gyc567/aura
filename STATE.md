@@ -34,6 +34,7 @@ Last run: 2026-08-09T17:00Z (Full audit of uncommitted changes; 3H+4M+3S finding
 - **cargo audit** — ✅ 0 vulnerabilities（180 deps）。本机 `~/.gitconfig` 的 `http.version=http/1.1`（小写非法）导致 libgit2 失败；用 `GIT_CONFIG_GLOBAL=/dev/null cargo audit` 绕过，未改用户全局配置
 - **真实模型 E2E（MiniMax M2.5，2026-08-09 第四轮）** — ✅ COMPLETE，4 个真 bug 全修复
 - **subagent inbox 消费（2026-08-09 第六轮）** — ✅ COMPLETE：`ChildInbox` + `ChildRegistry::drain_inbox` + `run_with_session` 可选收件箱参数，每轮注入 parent 消息为 User 消息；+3 测试（2 unit + 1 集成）；397 tests 全绿
+- **Release pipeline 打通（2026-08-10 第七轮）** — ✅ COMPLETE：runner 换 macos-latest（+dtolnay targets 输入）；publish flatten 修复（staging 目录）；draft release v0.1.0 已创建；install.sh 本地 E2E 正负向全 PASS；剩余 = 发布 gate（需人工）
 - **tag v0.1.0 + Release 触发修复（2026-08-09 第五轮）** — ✅
   - 发现 release.yml `on.push` 只匹配 `branches: [main]`，tag push 永远不触发 workflow（实测 tag 推送无 run）→ 加 `tags: ['v*']`
   - tag v0.1.0 已推送（指向含修复的提交 b7c16ff），Release workflow 已触发（run 31318810065），publish 等待 build 矩阵（macos-x64 排队中）
@@ -70,7 +71,11 @@ Last run: 2026-08-09T17:00Z (Full audit of uncommitted changes; 3H+4M+3S finding
 - ~~Phase 5 revisit: mock HTTP for `complete()`~~ ✅ 完成（mock TCP 服务器测试，2026-08-09 第四轮）
 - ~~cargo audit~~ ✅ 0 vulnerabilities（2026-08-09；`~/.gitconfig` 已改 `HTTP/1.1`，免 workaround）
 - ~~subagent inbox 消费~~ ✅ 完成（2026-08-09 第六轮）：`ChildInbox` + `run_with_session` 每轮注入；+3 测试
-- release v0.1.0 publish 等待 macos-x64 job（GitHub Intel runner 排队，跨 5+ run 持续数小时；本机已有双架构交叉构建能力可作后备）
+- ~~macos-x64 runner 排队~~ ✅ 解决（2026-08-10 第七轮）：macos-13 → macos-latest 交叉编译 x86_64-apple-darwin，1m47s 构建完成
+- ~~publish flatten 撞名~~ ✅ 修复（staging 目录扁平化）
+- ✅ **Release v0.1.0 pipeline 全绿**：tag run 31344671833 success，draft release 已创建（5 平台资产 + install.sh；workflow 日志证实，本地 API token pull-only 看不到 draft）
+- ⏳ **Human gate**：把 draft v0.1.0 转正式 release（不可逆/公开，需用户确认或提供 write token）
+- ⏳ install.sh 真实下载测试：本地全逻辑 E2E 已 PASS（正+负向），但 draft 资产需鉴权，发布后才能测真实 URL
 
 ## Work Log — 完整 / 未完整（2026-08-09 第二轮 push 后）
 

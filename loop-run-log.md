@@ -24,6 +24,33 @@ Append one entry per run. Prune entries older than 30 days.
 
 ```json
 {
+  "run_id": "2026-08-10T00:45:00Z",
+  "pattern": "release-pipeline-unblock (runner + flatten + draft)",
+  "duration_s": 2400,
+  "items_found": 2,
+  "actions_taken": 5,
+  "escalations": 0,
+  "tokens_estimate": 12000,
+  "outcome": "fix-proposed",
+  "fixes": [
+    "macos-x64 runner macos-13 -> macos-latest (Intel queue 4.5h+ -> Apple Silicon cross-compile x86_64-apple-darwin, build 1m47s); dtolnay targets: ${{ matrix.target }}",
+    "publish flatten bug: download-artifact@v4 dir name == file name broke mv (same file); flatten via artifacts_flat staging dir",
+    "install.sh E2E locally (local HTTP server + real release build): download->sha256->extract->install->'aura 0.1.0' PASS; wrong-sha256 negative test rc=1 PASS"
+  ],
+  "files_modified": [".github/workflows/release.yml", "STATE.md", "loop-run-log.md"],
+  "ci_status": {
+    "tag run 31344671833": "success (Quality + 5 builds + Publish)",
+    "draft release v0.1.0": "created (5 artifacts + install.sh); workflow log proof: create printed URL, upload-by-tag resolved, job green",
+    "local api token": "pull-only on gyc567/aura (cc232421) -> drafts invisible; git push via ssh unaffected"
+  },
+  "tests_total": 397,
+  "quality_gates": {"cargo_fmt_check": "PASS", "cargo_clippy": "PASS", "cargo_test": "PASS (397)"},
+  "next": "human gate: publish draft v0.1.0 (or provide write token); then real install.sh download test on published assets"
+}
+
+
+```json
+{
   "run_id": "2026-08-09T14:45:00Z",
   "pattern": "subagent-inbox (architecture 4.2 completion)",
   "duration_s": 1800,
