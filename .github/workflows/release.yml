@@ -157,11 +157,13 @@ jobs:
       - name: Flatten artifact dirs
         shell: bash
         run: |
-          for dir in artifacts/*/; do
-            artifact=$(ls "$dir" | head -1)
-            mv "$dir/$artifact" "artifacts/$artifact"
-            rmdir "$dir"
-          done
+          # download-artifact@v4 生成 artifacts/<name>/<file>，且 name == file；
+          # 直接 mv 到上级会撞名（same file），先用 staging 目录扁平化。
+          mkdir -p artifacts_flat
+          find artifacts -mindepth 2 -maxdepth 2 -type f -exec mv {} artifacts_flat/ \;
+          find artifacts -mindepth 1 -maxdepth 1 -type d -empty -delete
+          mv artifacts_flat/* artifacts/
+          rmdir artifacts_flat
           ls -lh artifacts/
 
       - name: Create draft release
