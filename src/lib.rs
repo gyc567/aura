@@ -32,6 +32,7 @@ pub mod precheck;
 pub mod registry;
 pub mod reminders;
 pub mod session;
+pub mod setup;
 pub mod sse;
 pub mod state;
 pub mod tool;

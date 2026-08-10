@@ -88,6 +88,26 @@ pub struct CliArgs {
 pub enum CliCommand {
     /// 基准测试框架
     Bench(BenchCli),
+    /// 首次运行配置向导：交互式设置大模型 provider 与 API key
+    Setup(SetupCli),
+}
+
+/// `aura setup` 子命令参数。
+///
+/// slice 1：仅占位，无参数。后续 slice 会加 `--non-interactive` / `--provider` 等。
+#[derive(Debug, Clone, Parser)]
+#[command(name = "aura-setup", about = "Aura first-run onboarding wizard")]
+pub struct SetupCli {
+    /// 仅占位，未来可承载 `--non-interactive` / `--provider <id>` 等
+    #[command(subcommand)]
+    pub command: SetupCommand,
+}
+
+/// `aura setup` 预留子命令枚举（slice 1 为空）。
+#[derive(Debug, Clone, Subcommand)]
+pub enum SetupCommand {
+    /// 默认行为：启动交互式 TUI 向导
+    Wizard,
 }
 
 /// `aura bench` 子命令参数。

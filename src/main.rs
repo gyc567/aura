@@ -42,7 +42,7 @@ use aura::tools::{
     read_file::ReadFileTool, run_command::RunCommandTool, scratchpad::ScratchpadTool,
     todo_write::TodoWriteTool, write_file::WriteFileTool,
 };
-use aura::{Budget, Config, ErrorBudget, HttpConfig, HttpModelAdapter, InMemoryRegistry};
+use aura::{Budget, Config, ErrorBudget, HttpConfig, HttpModelAdapter, InMemoryRegistry, setup};
 
 fn main() -> ExitCode {
     let args = CliArgs::parse();
@@ -56,47 +56,57 @@ fn main() -> ExitCode {
 }
 
 fn run(args: &CliArgs) -> Result<ExitCode, AgentError> {
-    // Handle bench subcommand
+    // Handle subcommands
     if let Some(command) = &args.command {
-        return run_bench(command);
+        return match command {
+            CliCommand::Bench(bench) => run_bench(bench),
+            CliCommand::Setup(setup) => run_setup(setup),
+        };
     }
 
     // Main agent mode (no subcommand)
     let instruction = args.instruction.as_deref().ok_or_else(|| {
         AgentError::InvalidRequest(
-            "missing INSTRUCTION: provide a task or use `aura bench --help`".into(),
+            "missing INSTRUCTION: provide a task, run `aura setup`, or use `aura bench --help`"
+                .into(),
         )
     })?;
 
     run_agent_mode(args, instruction)
 }
 
+/// `aura setup`: 启动首次运行 onboarding 向导。
+///
+/// slice 1：仅占位 —— 转发到 `setup::run_wizard()` 桩，返回 `NotImplemented` 错误。
+/// slice 3 起会接入第一个 provider (`DeepSeek`) 的真实 TUI 流。
+fn run_setup(_setup: &aura::cli::SetupCli) -> Result<ExitCode, AgentError> {
+    setup::run_wizard()
+}
+
 /// Handle bench subcommands.
-fn run_bench(command: &CliCommand) -> Result<ExitCode, AgentError> {
-    match command {
-        CliCommand::Bench(bench) => match &bench.command {
-            BenchCommand::Run {
-                tasks,
-                agent,
-                parallel,
-                timeout,
-                output,
-                sandbox: _,
-            } => run_bench_run(
-                tasks.as_deref(),
-                agent,
-                parallel.as_ref(),
-                *timeout,
-                output.as_deref(),
-            ),
-            BenchCommand::Report { dir } => run_bench_report(dir),
-            BenchCommand::Init { name } => run_bench_init(name),
-            BenchCommand::List {} => run_bench_list(),
-            BenchCommand::Diff {
-                base_dir,
-                current_dir,
-            } => run_bench_diff(base_dir, current_dir),
-        },
+fn run_bench(bench: &aura::cli::BenchCli) -> Result<ExitCode, AgentError> {
+    match &bench.command {
+        BenchCommand::Run {
+            tasks,
+            agent,
+            parallel,
+            timeout,
+            output,
+            sandbox: _,
+        } => run_bench_run(
+            tasks.as_deref(),
+            agent,
+            parallel.as_ref(),
+            *timeout,
+            output.as_deref(),
+        ),
+        BenchCommand::Report { dir } => run_bench_report(dir),
+        BenchCommand::Init { name } => run_bench_init(name),
+        BenchCommand::List {} => run_bench_list(),
+        BenchCommand::Diff {
+            base_dir,
+            current_dir,
+        } => run_bench_diff(base_dir, current_dir),
     }
 }
 

@@ -57,6 +57,13 @@ pub enum AgentError {
     /// 需要人工/CLI `--yes` 确认后才能执行。
     #[error("confirmation required: {0}")]
     NeedsConfirmation(String),
+
+    /// 功能尚未实现（用于模块骨架 / 计划中的特性）。
+    ///
+    /// 区别于 `InvalidRequest`：`InvalidRequest` 表示请求本身有问题；
+    /// `NotImplemented` 表示代码路径承认是 stub，调用方应等待后续版本或显式 feature flag。
+    #[error("not implemented: {0}")]
+    NotImplemented(String),
 }
 
 impl AgentError {
@@ -73,9 +80,8 @@ impl AgentError {
     /// 返回该错误对应的 CLI 退出码。
     ///
     /// 见 [`docs/coding-agent-design.md`](../../docs/coding-agent-design.md) §7：
-    /// - 配置错误 → 2（Phase 4 引入 `Config` 变体后扩展）
     /// - `PathPolicy` / `CommandPolicy` / `NeedsConfirmation` → 3
-    /// - 其它领域错误 → 1
+    /// - 其它领域错误（包括 `NotImplemented`）→ 1
     #[must_use]
     pub fn exit_code(&self) -> u8 {
         match self {
